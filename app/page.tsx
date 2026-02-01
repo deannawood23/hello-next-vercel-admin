@@ -39,36 +39,53 @@ export default function Home() {
     }, []);
 
     return (
-        <main className="min-h-screen bg-white px-6 py-10 text-slate-900">
-            <h1 className="mb-6 text-3xl font-semibold">Captions</h1>
+        <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10 text-slate-900 sm:px-8">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+                <header className="space-y-2">
+                    <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+                        Gallery
+                    </p>
+                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                        Captions
+                    </h1>
+                </header>
 
-            {loading && <p>Loading...</p>}
-            {error && !loading && <p>Error: {error}</p>}
+                {loading && <p className="text-slate-600">Loading...</p>}
+                {error && !loading && (
+                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+                        Error: {error}
+                    </p>
+                )}
 
-            {!loading && !error && (
-                <div className="space-y-10">
-                    {images.map((image) => (
-                        <section key={image.id} className="space-y-3">
-                            {image.url && (
-                                <img
-                                    src={image.url}
-                                    alt=""
-                                    className="max-w-xl rounded-lg"
-                                />
-                            )}
-                            {image.captions && image.captions.length > 0 && (
-                                <ul className="list-disc space-y-2 pl-5">
-                                    {image.captions.map((caption) => (
-                                        <li key={caption.id}>
-                                            {caption.content ?? '(empty caption)'}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </section>
-                    ))}
-                </div>
-            )}
+                {!loading && !error && (
+                    <div className="space-y-10">
+                        {images.map((image) => (
+                            <section
+                                key={image.id}
+                                className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+                            >
+                                {image.url && (
+                                    <img
+                                        src={image.url}
+                                        alt=""
+                                        className="h-auto w-full rounded-xl"
+                                    />
+                                )}
+                                {image.captions && image.captions.length > 0 && (
+                                    <ul className="list-disc space-y-2 pl-5 text-slate-700">
+                                        {image.captions.map((caption) => (
+                                            <li key={caption.id}>
+                                                {caption.content ??
+                                                    '(empty caption)'}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
+                        ))}
+                    </div>
+                )}
+            </div>
         </main>
     );
 }
