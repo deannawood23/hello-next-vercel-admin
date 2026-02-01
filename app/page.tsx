@@ -3,34 +3,39 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../src/lib/supabaseClient';
 
-type Caption = {
-    id: string | number;
-    content: string | null;
+type Image = {
+    id: string;
+    url: string | null;
+    captions: { id: string; content: string | null }[];
 };
 
 export default function Home() {
-    const [captions, setCaptions] = useState<Caption[]>([]);
+    const [images, setImages] = useState<Image[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchCaptions = async () => {
+        const fetchImages = async () => {
             const { data, error: queryError } = await supabase
-                .from('captions')
-                .select('id, content');
+                .from('images')
+                .select('id, url, captions ( id, content )');
 
             if (queryError) {
                 setError(queryError.message);
-                setCaptions([]);
+                setImages([]);
             } else {
-                setCaptions(data ?? []);
+                const rows = (data ?? []) as Image[];
+                const filtered = rows.filter(
+                    (image) => image.captions && image.captions.length > 0
+                );
+                setImages(filtered);
                 setError(null);
             }
 
             setLoading(false);
         };
 
-        fetchCaptions();
+        fetchImages();
     }, []);
 
     return (
@@ -41,13 +46,28 @@ export default function Home() {
             {error && !loading && <p>Error: {error}</p>}
 
             {!loading && !error && (
-                <ul className="list-disc space-y-2 pl-5">
-                    {captions.map((caption) => (
-                        <li key={caption.id}>
-                            {caption.content ?? '(empty caption)'}
-                        </li>
+                <div className="space-y-10">
+                    {images.map((image) => (
+                        <section key={image.id} className="space-y-3">
+                            {image.url && (
+                                <img
+                                    src={image.url}
+                                    alt=""
+                                    className="max-w-xl rounded-lg"
+                                />
+                            )}
+                            {image.captions && image.captions.length > 0 && (
+                                <ul className="list-disc space-y-2 pl-5">
+                                    {image.captions.map((caption) => (
+                                        <li key={caption.id}>
+                                            {caption.content ?? '(empty caption)'}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
                     ))}
-                </ul>
+                </div>
             )}
         </main>
     );
