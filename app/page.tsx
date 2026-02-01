@@ -6,7 +6,11 @@ import { supabase } from '../src/lib/supabaseClient';
 type Image = {
     id: string;
     url: string | null;
-    captions: { id: string; content: string | null }[];
+    captions: {
+        id: string;
+        content: string | null;
+        created_datetime_utc: string;
+    }[];
 };
 
 export default function Home() {
@@ -18,15 +22,26 @@ export default function Home() {
         const fetchImages = async () => {
             const { data, error: queryError } = await supabase
                 .from('images')
-                .select('id, url, captions ( id, content )');
+                .select('id, url, captions ( id, content, created_datetime_utc )')
+                .order('created_datetime_utc', { ascending: false });
 
             if (queryError) {
                 setError(queryError.message);
                 setImages([]);
             } else {
                 const rows = (data ?? []) as Image[];
-                const filtered = rows.filter(
-                    (image) => image.captions && image.captions.length > 0
+                const normalized = rows.map((image) => ({
+                    ...image,
+                    captions: Array.isArray(image.captions)
+                        ? [...image.captions].sort(
+                              (a, b) =>
+                                  Date.parse(b.created_datetime_utc) -
+                                  Date.parse(a.created_datetime_utc)
+                          )
+                        : [],
+                }));
+                const filtered = normalized.filter(
+                    (image) => image.captions.length > 0
                 );
                 setImages(filtered);
                 setError(null);
@@ -45,8 +60,8 @@ export default function Home() {
                     <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
                         Gallery
                     </p>
-                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                        Captions
+                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight sm:text-4xl">
+                        Crackd Captions
                     </h1>
                 </header>
 
@@ -73,12 +88,14 @@ export default function Home() {
                                 )}
                                 {image.captions && image.captions.length > 0 && (
                                     <ul className="list-disc space-y-2 pl-5 text-slate-700">
-                                        {image.captions.map((caption) => (
+                                        {image.captions
+                                            .slice(0, 10)
+                                            .map((caption) => (
                                             <li key={caption.id}>
                                                 {caption.content ??
                                                     '(empty caption)'}
                                             </li>
-                                        ))}
+                                            ))}
                                     </ul>
                                 )}
                             </section>
