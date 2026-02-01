@@ -1,14 +1,54 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '../src/lib/supabaseClient';
+
+type Caption = {
+    id: string | number;
+    content: string | null;
+};
+
 export default function Home() {
+    const [captions, setCaptions] = useState<Caption[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchCaptions = async () => {
+            const { data, error: queryError } = await supabase
+                .from('captions')
+                .select('id, content');
+
+            if (queryError) {
+                setError(queryError.message);
+                setCaptions([]);
+            } else {
+                setCaptions(data ?? []);
+                setError(null);
+            }
+
+            setLoading(false);
+        };
+
+        fetchCaptions();
+    }, []);
+
     return (
-        <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-200 via-sky-100 to-blue-200">
-            <div className="rounded-3xl bg-white/90 px-12 py-14 shadow-2xl backdrop-blur">
-                <h1 className="mb-4 text-center text-4xl font-extrabold tracking-tight text-sky-900">
-                    Hello World!
-                </h1>
-                <p className="text-center text-sky-700">
-                    My first Next.js app, deployed on Vercel.
-                </p>
-            </div>
+        <main className="min-h-screen bg-white px-6 py-10 text-slate-900">
+            <h1 className="mb-6 text-3xl font-semibold">Captions</h1>
+
+            {loading && <p>Loading...</p>}
+            {error && !loading && <p>Error: {error}</p>}
+
+            {!loading && !error && (
+                <ul className="list-disc space-y-2 pl-5">
+                    {captions.map((caption) => (
+                        <li key={caption.id}>
+                            {caption.content ?? '(empty caption)'}
+                        </li>
+                    ))}
+                </ul>
+            )}
         </main>
     );
 }
