@@ -6,6 +6,7 @@ import { supabase } from '../src/lib/supabaseClient';
 type Image = {
     id: string;
     url: string | null;
+    created_datetime_utc: string;
     captions: {
         id: string;
         content: string | null;
@@ -19,11 +20,19 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchImages = async () => {
             const { data, error: queryError } = await supabase
                 .from('images')
-                .select('id, url, captions ( id, content, created_datetime_utc )')
+                .select(
+                    'id, url, created_datetime_utc, captions ( id, content, created_datetime_utc )'
+                )
                 .order('created_datetime_utc', { ascending: false });
+
+            if (!isMounted) {
+                return;
+            }
 
             if (queryError) {
                 setError(queryError.message);
@@ -43,7 +52,18 @@ export default function Home() {
                 const filtered = normalized.filter(
                     (image) => image.captions.length > 0
                 );
-                setImages(filtered);
+                const sortedImages = filtered.sort((a, b) => {
+                    const aLatest =
+                        a.captions.length > 0
+                            ? Date.parse(a.captions[0].created_datetime_utc)
+                            : 0;
+                    const bLatest =
+                        b.captions.length > 0
+                            ? Date.parse(b.captions[0].created_datetime_utc)
+                            : 0;
+                    return bLatest - aLatest;
+                });
+                setImages(sortedImages);
                 setError(null);
             }
 
@@ -51,6 +71,29 @@ export default function Home() {
         };
 
         fetchImages();
+
+        const channel = supabase
+            .channel('images-captions-live')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'images' },
+                () => {
+                    fetchImages();
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'captions' },
+                () => {
+                    fetchImages();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            isMounted = false;
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     return (
