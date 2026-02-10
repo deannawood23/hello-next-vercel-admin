@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../src/lib/supabaseClient';
+import { supabase } from '../src/lib/supabase/client';
 
 type Image = {
     id: string;
