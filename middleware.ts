@@ -14,6 +14,9 @@ export async function middleware(request: NextRequest) {
     }
 
     let response = NextResponse.next({ request });
+    const pathname = request.nextUrl.pathname;
+    const isAuthFreePath =
+        pathname === '/login' || pathname.startsWith('/auth/callback');
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
         cookies: {
@@ -33,7 +36,7 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (!user && !isAuthFreePath) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = '/login';
         redirectUrl.searchParams.set('message', 'Please sign in to continue.');
@@ -44,5 +47,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/protected/:path*'],
+    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
