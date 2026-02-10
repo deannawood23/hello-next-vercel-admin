@@ -10,9 +10,10 @@ if (!supabaseProjectId || !supabaseAnonKey) {
 }
 
 const supabaseUrl = `https://${supabaseProjectId}.supabase.co`;
+const supabaseAnonKeyValue = supabaseAnonKey;
 
 export function createSupabaseBrowserClient() {
-    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+    return createBrowserClient(supabaseUrl, supabaseAnonKeyValue);
 }
 
 export const supabase = createSupabaseBrowserClient();

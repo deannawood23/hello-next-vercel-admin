@@ -4,13 +4,13 @@ import { createSupabaseServerClient } from '../../src/lib/supabase/server';
 async function signOut() {
     'use server';
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     await supabase.auth.signOut();
     redirect('/login');
 }
 
 export default async function ProtectedPage() {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data } = await supabase.auth.getUser();
     const user = data.user;
 

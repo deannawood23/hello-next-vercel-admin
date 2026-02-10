@@ -11,11 +11,12 @@ if (!supabaseProjectId || !supabaseAnonKey) {
 }
 
 const supabaseUrl = `https://${supabaseProjectId}.supabase.co`;
+const supabaseAnonKeyValue = supabaseAnonKey;
 
-export function createSupabaseServerClient() {
-    const cookieStore = cookies();
+export async function createSupabaseServerClient() {
+    const cookieStore = await cookies();
 
-    return createServerClient(supabaseUrl, supabaseAnonKey, {
+    return createServerClient(supabaseUrl, supabaseAnonKeyValue, {
         cookies: {
             get(name) {
                 return cookieStore.get(name)?.value;

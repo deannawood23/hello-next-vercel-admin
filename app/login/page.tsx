@@ -10,7 +10,7 @@ async function signInWithGoogle() {
     'use server';
 
     try {
-        const supabase = createSupabaseServerClient();
+        const supabase = await createSupabaseServerClient();
         const headerList = await headers();
         const host =
             headerList.get('x-forwarded-host') ?? headerList.get('host');
