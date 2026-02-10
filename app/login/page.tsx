@@ -37,7 +37,21 @@ async function signInWithGoogle() {
 
         redirect(data.url);
     } catch (error) {
-        redirect('/login?message=Unable%20to%20sign%20in%20right%20now.');
+        const digest =
+            error && typeof error === 'object' && 'digest' in error
+                ? String(error.digest)
+                : '';
+
+        if (digest.startsWith('NEXT_REDIRECT')) {
+            throw error;
+        }
+
+        console.error('OAuth action error:', error);
+        const fallbackMessage =
+            error instanceof Error && error.message
+                ? error.message
+                : 'Unable to sign in right now.';
+        redirect(`/login?message=${encodeURIComponent(fallbackMessage)}`);
     }
 }
 
