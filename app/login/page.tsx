@@ -15,7 +15,7 @@ async function signInWithGoogle() {
         const host =
             headerList.get('x-forwarded-host') ?? headerList.get('host');
         const proto = headerList.get('x-forwarded-proto') ?? 'http';
-        const origin = headerList.get('origin') ?? (host ? `${proto}://${host}` : '');
+        const origin = host ? `${proto}://${host}` : '';
 
         if (!origin) {
             redirect('/login?message=Unable%20to%20determine%20origin.');
@@ -29,11 +29,10 @@ async function signInWithGoogle() {
         });
 
         if (error || !data?.url) {
-            redirect(
-                `/login?message=${encodeURIComponent(
-                    error?.message ?? 'No OAuth URL returned'
-                )}`
-            );
+            console.error('OAuth error:', error);
+            console.error('OAuth data:', data);
+            const msg = error?.message ?? 'No OAuth URL returned from Supabase.';
+            redirect(`/login?message=${encodeURIComponent(msg)}`);
         }
 
         redirect(data.url);

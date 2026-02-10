@@ -1,22 +1,16 @@
 import { redirect } from 'next/navigation';
-import { createSupabaseServerClient } from '../../src/lib/supabase/server';
+import { requireUser } from '../../src/lib/auth/requireUser';
 
 async function signOut() {
     'use server';
 
-    const supabase = await createSupabaseServerClient();
+    const { supabase } = await requireUser();
     await supabase.auth.signOut();
     redirect('/login');
 }
 
 export default async function ProtectedPage() {
-    const supabase = await createSupabaseServerClient();
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
-
-    if (!user) {
-        redirect('/login?message=Please%20sign%20in%20to%20continue.');
-    }
+    const { user } = await requireUser();
 
     return (
         <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-12 text-slate-900 sm:px-8">
