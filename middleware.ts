@@ -39,7 +39,6 @@ export async function middleware(request: NextRequest) {
     if (!user && !isAuthFreePath) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = '/login';
-        redirectUrl.searchParams.set('message', 'Please sign in to continue.');
         return NextResponse.redirect(redirectUrl);
     }
 

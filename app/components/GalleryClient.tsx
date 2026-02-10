@@ -160,10 +160,10 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 <header className="space-y-2">
                     <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-                        See what we're cookin
+                        See what terre's cookin
                     </p>
                     <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight sm:text-4xl">
-                        Newly Generated Captions
+                        Newest Crackd Captions 👩‍🍳
                     </h1>
                 </header>
 

@@ -2,10 +2,6 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '../../src/lib/supabase/server';
 
-type LoginPageProps = {
-    searchParams?: Promise<{ message?: string }>;
-};
-
 async function signInWithGoogle() {
     'use server';
 
@@ -18,7 +14,7 @@ async function signInWithGoogle() {
         const origin = host ? `${proto}://${host}` : '';
 
         if (!origin) {
-            redirect('/login?message=Unable%20to%20determine%20origin.');
+            redirect('/login');
         }
 
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -31,8 +27,7 @@ async function signInWithGoogle() {
         if (error || !data?.url) {
             console.error('OAuth error:', error);
             console.error('OAuth data:', data);
-            const msg = error?.message ?? 'No OAuth URL returned from Supabase.';
-            redirect(`/login?message=${encodeURIComponent(msg)}`);
+            redirect('/login');
         }
 
         redirect(data.url);
@@ -47,32 +42,21 @@ async function signInWithGoogle() {
         }
 
         console.error('OAuth action error:', error);
-        const fallbackMessage =
-            error instanceof Error && error.message
-                ? error.message
-                : 'Unable to sign in right now.';
-        redirect(`/login?message=${encodeURIComponent(fallbackMessage)}`);
+        redirect('/login');
     }
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-    const resolvedSearchParams = await searchParams;
-    const message = resolvedSearchParams?.message;
-
+export default async function LoginPage() {
     return (
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-12 text-slate-900 sm:px-8">
-            <div className="mx-auto flex w-full max-w-md flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="space-y-2">
-                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight">
-                        WELCOME TO CRACKD
+        <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 text-slate-900">
+            <div className="mx-auto flex w-full max-w-lg flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="space-y-4 text-center">
+                    <h1 className="flex items-center justify-center gap-2 font-[var(--font-playfair)] text-3xl font-semibold tracking-tight">
+                        SIGN IN TO GET CRACKD  🍳
                     </h1>
-                </div>
 
-                {message && (
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                        {message}
-                    </p>
-                )}
+                    <div className="h-px w-full bg-slate-200" />
+                </div>
 
                 <form action={signInWithGoogle}>
                     <button

@@ -13,7 +13,7 @@ export async function requireUser(): Promise<RequireUserResult> {
     const user = data.user;
 
     if (!user) {
-        redirect('/login?message=Please%20sign%20in%20to%20continue.');
+        redirect('/login');
     }
 
     return { user, supabase };
