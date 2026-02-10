@@ -15,7 +15,11 @@ type Image = {
     }[];
 };
 
-export function GalleryClient() {
+type GalleryClientProps = {
+    userEmail: string;
+};
+
+export function GalleryClient({ userEmail }: GalleryClientProps) {
     const router = useRouter();
     const [images, setImages] = useState<Image[]>([]);
     const [loading, setLoading] = useState(true);
@@ -115,35 +119,51 @@ export function GalleryClient() {
 
     return (
         <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10 text-slate-900 sm:px-8">
-            <button
-                type="button"
-                onClick={handleSignOut}
-                className="fixed right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Sign out"
-                disabled={signingOut}
-            >
-                <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                >
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                    <path d="M10 17l5-5-5-5" />
-                    <path d="M15 12H3" />
-                </svg>
-            </button>
+            <div className="fixed right-4 top-4">
+                <details className="group relative">
+                    <summary
+                        className="inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                        aria-label="Account"
+                    >
+                        <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-5 w-5"
+                        >
+                            <path d="M20 21a8 8 0 0 0-16 0" />
+                            <circle cx="12" cy="8" r="4" />
+                        </svg>
+                    </summary>
+                    <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Signed in as
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {userEmail || 'Unknown user'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleSignOut}
+                            className="mt-4 w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={signingOut}
+                        >
+                            Log out
+                        </button>
+                    </div>
+                </details>
+            </div>
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 <header className="space-y-2">
                     <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-                        Gallery
+                        See what we're cookin
                     </p>
                     <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight sm:text-4xl">
-                        Crackd Captions
+                        Newly Generated Captions
                     </h1>
                 </header>
 
