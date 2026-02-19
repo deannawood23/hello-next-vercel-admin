@@ -529,47 +529,79 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     </p>
                                 )}
 
-                                <div className="flex flex-wrap gap-3 pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={goToPreviousCaption}
-                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-                                        disabled={currentIndex === 0 || voteSaving}
-                                    >
-                                        Back
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => voteOnCaption(currentItem.caption.id, 1)}
-                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
-                                            selectedVote === 1
-                                                ? 'border border-[#5E6AD2]/50 bg-[#5E6AD2] text-white shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_12px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]'
-                                                : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
-                                        }`}
-                                        disabled={!canVote || voteSaving}
-                                    >
-                                        👍 Upvote
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => voteOnCaption(currentItem.caption.id, -1)}
-                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
-                                            selectedVote === -1
-                                                ? 'border border-white/20 bg-white/[0.14] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_4px_14px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.2)]'
-                                                : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
-                                        }`}
-                                        disabled={!canVote || voteSaving}
-                                    >
-                                        👎 Downvote
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={goToNextCaption}
-                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-                                        disabled={isLastCaption || voteSaving}
-                                    >
-                                        Next
-                                    </button>
+                                <div className="space-y-3 pt-1">
+                                    <div className="flex w-full items-center justify-center gap-8">
+                                        <button
+                                            type="button"
+                                            onClick={() => voteOnCaption(currentItem.caption.id, 1)}
+                                            aria-label="Upvote"
+                                            className={`inline-flex h-24 w-72 max-w-[45%] items-center justify-center rounded-xl border px-4 text-5xl leading-none transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                selectedVote === 1
+                                                    ? 'border border-[#5E6AD2]/50 bg-[#5E6AD2] text-white shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_12px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                                                    : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
+                                            }`}
+                                            disabled={!canVote || voteSaving}
+                                        >
+                                            <svg
+                                                aria-hidden="true"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.9"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                className="h-10 w-10"
+                                            >
+                                                <path d="M7 10v10" />
+                                                <path d="M11 20h7.2a2 2 0 0 0 2-1.6l1-5a2 2 0 0 0-2-2.4h-4.1l.7-3.2a2 2 0 0 0-2-2.4H12l-3 4.6V20" />
+                                                <path d="M3 10h4v10H3z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => voteOnCaption(currentItem.caption.id, -1)}
+                                            aria-label="Downvote"
+                                            className={`inline-flex h-24 w-72 max-w-[45%] items-center justify-center rounded-xl border px-4 text-5xl leading-none transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                selectedVote === -1
+                                                    ? 'border border-white/20 bg-white/[0.14] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_4px_14px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                                                    : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
+                                            }`}
+                                            disabled={!canVote || voteSaving}
+                                        >
+                                            <svg
+                                                aria-hidden="true"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.9"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                className="h-10 w-10"
+                                            >
+                                                <path d="M17 14V4" />
+                                                <path d="M13 4H5.8a2 2 0 0 0-2 1.6l-1 5A2 2 0 0 0 4.8 13h4.1l-.7 3.2a2 2 0 0 0 2 2.4H12l3-4.6V4" />
+                                                <path d="M21 4h-4v10h4z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div className="flex w-full items-center justify-center gap-8">
+                                        <button
+                                            type="button"
+                                            onClick={goToPreviousCaption}
+                                            className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                            disabled={currentIndex === 0 || voteSaving}
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={goToNextCaption}
+                                            className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                            disabled={isLastCaption || voteSaving}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {voteError && (
