@@ -31,6 +31,15 @@ type GalleryClientProps = {
 
 const CAPTIONS_PER_SESSION = 10;
 
+function shuffleItems<T>(items: T[]): T[] {
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 export function GalleryClient({ userEmail }: GalleryClientProps) {
     const router = useRouter();
     const seenCaptionIdsRef = useRef<Set<string>>(new Set());
@@ -45,6 +54,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
     const [voteSaving, setVoteSaving] = useState(false);
     const [voteError, setVoteError] = useState<string | null>(null);
     const [votesByCaption, setVotesByCaption] = useState<Record<string, number>>({});
+    const [spotlight, setSpotlight] = useState({ x: 50, y: 50, active: false });
 
     const currentItem = captionItems[currentIndex] ?? null;
     const nextItem = captionItems[currentIndex + 1] ?? null;
@@ -120,6 +130,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
             profileId: string | null,
             reset: boolean
         ) => {
+            const oneWeekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
             const { data, error: queryError } = await supabase
                 .from('images')
                 .select(
@@ -164,14 +175,25 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                 return bLatest - aLatest;
             });
 
-            const sessionCaptions = sortedImages
-                .flatMap((image) =>
-                    image.captions.map((caption) => ({
-                        imageId: image.id,
-                        imageUrl: image.url,
-                        caption,
-                    }))
-                );
+            const sessionCaptions = shuffleItems(
+                sortedImages
+                    .flatMap((image) =>
+                        image.captions.map((caption) => ({
+                            imageId: image.id,
+                            imageUrl: image.url,
+                            caption,
+                        }))
+                    )
+                    .filter((item) => {
+                        const captionCreatedMs = Date.parse(
+                            item.caption.created_datetime_utc
+                        );
+                        return (
+                            Number.isFinite(captionCreatedMs) &&
+                            captionCreatedMs >= oneWeekAgoMs
+                        );
+                    })
+            );
 
             if (reset) {
                 const initialBatch = sessionCaptions.slice(0, CAPTIONS_PER_SESSION);
@@ -364,11 +386,17 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
     };
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10 text-slate-900 sm:px-8">
-            <div className="fixed right-4 top-4">
+        <main className="linear-page-bg min-h-screen px-4 py-10 text-[#EDEDEF] sm:px-8">
+            <div aria-hidden="true" className="linear-grid absolute inset-0 opacity-100" />
+            <div aria-hidden="true" className="linear-noise absolute inset-0 opacity-[0.015]" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-primary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-secondary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-tertiary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-bottom" />
+            <div className="fixed right-4 top-4 z-20">
                 <details className="group relative">
                     <summary
-                        className="inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                        className="inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[0_2px_20px_rgba(0,0,0,0.45)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5E6AD2]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050506]"
                         aria-label="Account"
                     >
                         <svg
@@ -385,17 +413,17 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                             <circle cx="12" cy="8" r="4" />
                         </svg>
                     </summary>
-                    <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="linear-glass absolute right-0 mt-2 w-64 rounded-2xl p-4">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#8A8F98]">
                             Signed in as
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                        <p className="mt-1 text-sm font-semibold text-[#EDEDEF]">
                             {userEmail || 'Unknown user'}
                         </p>
                         <button
                             type="button"
                             onClick={handleSignOut}
-                            className="mt-4 w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-4 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={signingOut}
                         >
                             Log out
@@ -403,30 +431,49 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                     </div>
                 </details>
             </div>
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-                <header className="space-y-2">
-                    <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+            <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col gap-8">
+                <header className="space-y-3 pt-8 sm:pt-12">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[#8A8F98]">
                         See what&apos;s cookin
                     </p>
-                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight sm:text-4xl">
+                    <h1 className="bg-gradient-to-b from-white via-white/95 to-white/65 bg-clip-text font-[var(--font-playfair)] text-4xl font-semibold leading-tight tracking-tight text-transparent sm:text-5xl">
                         Newest Crackd Captions 👩‍🍳
                     </h1>
                 </header>
 
-                {loading && <p className="text-slate-600">Loading...</p>}
+                {loading && <p className="text-[#8A8F98]">Loading...</p>}
                 {error && !loading && (
-                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+                    <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-rose-200">
                         Error: {error}
                     </p>
                 )}
 
                 {!loading && !error && (
-                    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                    <section
+                        className="linear-glass relative overflow-hidden space-y-4 rounded-2xl p-4 sm:p-6"
+                        onMouseMove={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            const x = ((event.clientX - rect.left) / rect.width) * 100;
+                            const y = ((event.clientY - rect.top) / rect.height) * 100;
+                            setSpotlight({ x, y, active: true });
+                        }}
+                        onMouseLeave={() =>
+                            setSpotlight((prev) => ({ ...prev, active: false }))
+                        }
+                    >
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 transition-opacity duration-300 ease-out"
+                            style={{
+                                opacity: spotlight.active ? 1 : 0,
+                                background: `radial-gradient(300px circle at ${spotlight.x}% ${spotlight.y}%, rgba(94,106,210,0.16), transparent 60%)`,
+                            }}
+                        />
                         {currentItem?.imageUrl && (
                             <img
                                 src={currentItem.imageUrl}
                                 alt=""
-                                className="h-auto w-full rounded-xl"
+                                className="relative z-10 h-auto w-full rounded-xl border border-white/10"
                             />
                         )}
 
@@ -440,19 +487,19 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                         )}
 
                         {captionItems.length === 0 && (
-                            <p className="text-slate-600">No captions available yet.</p>
+                            <p className="text-[#8A8F98]">No captions available yet.</p>
                         )}
 
                         {!currentItem && captionItems.length > 0 && (
                             <>
-                                <p className="rounded-xl bg-slate-50 px-4 py-3 text-lg text-slate-800">
+                                <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-lg text-[#EDEDEF]">
                                     You&apos;re done.
                                 </p>
                                 <div className="flex flex-wrap gap-3 pt-1">
                                     <button
                                         type="button"
                                         onClick={goToPreviousCaption}
-                                        className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                         disabled={currentIndex === 0 || voteSaving}
                                     >
                                         Back
@@ -463,19 +510,19 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
 
                         {currentItem && (
                             <>
-                                <p className="text-sm font-medium text-slate-500">
+                                <p className="font-mono text-xs tracking-widest text-[#8A8F98]">
                                     Caption {currentIndex + 1} of {captionItems.length}
                                 </p>
-                                <p className="rounded-xl bg-slate-50 px-4 py-3 text-lg text-slate-800">
+                                <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-lg text-[#EDEDEF]">
                                     {currentItem.caption.content ?? '(empty caption)'}
                                 </p>
 
                                 {!canVote && (
-                                    <p className="text-sm text-slate-600">
+                                    <p className="text-sm text-[#8A8F98]">
                                         Sign in to vote.{' '}
                                         <a
                                             href="/login"
-                                            className="font-semibold text-slate-800 underline"
+                                            className="font-semibold text-[#EDEDEF] underline decoration-[#5E6AD2]/70 underline-offset-2"
                                         >
                                             Go to login
                                         </a>
@@ -486,7 +533,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     <button
                                         type="button"
                                         onClick={goToPreviousCaption}
-                                        className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                         disabled={currentIndex === 0 || voteSaving}
                                     >
                                         Back
@@ -494,10 +541,10 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     <button
                                         type="button"
                                         onClick={() => voteOnCaption(currentItem.caption.id, 1)}
-                                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
                                             selectedVote === 1
-                                                ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                                                : 'border-slate-300 text-slate-700 hover:border-slate-400 hover:text-slate-900'
+                                                ? 'border border-[#5E6AD2]/50 bg-[#5E6AD2] text-white shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_12px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                                                : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
                                         }`}
                                         disabled={!canVote || voteSaving}
                                     >
@@ -506,10 +553,10 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     <button
                                         type="button"
                                         onClick={() => voteOnCaption(currentItem.caption.id, -1)}
-                                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
                                             selectedVote === -1
-                                                ? 'border-rose-300 bg-rose-50 text-rose-700'
-                                                : 'border-slate-300 text-slate-700 hover:border-slate-400 hover:text-slate-900'
+                                                ? 'border border-white/20 bg-white/[0.14] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_4px_14px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                                                : 'border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:border-white/20 hover:bg-white/[0.08]'
                                         }`}
                                         disabled={!canVote || voteSaving}
                                     >
@@ -518,23 +565,15 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     <button
                                         type="button"
                                         onClick={goToNextCaption}
-                                        className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                         disabled={isLastCaption || voteSaving}
                                     >
                                         Next
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={goToNextCaption}
-                                        className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                                        disabled={isLastCaption || voteSaving}
-                                    >
-                                        Skip
-                                    </button>
                                 </div>
 
                                 {voteError && (
-                                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                    <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
                                         {voteError}
                                     </p>
                                 )}
