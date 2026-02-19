@@ -450,7 +450,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
 
                 {!loading && !error && (
                     <section
-                        className="linear-glass relative overflow-hidden space-y-4 rounded-2xl p-4 sm:p-6"
+                        className="linear-glass relative overflow-hidden space-y-4 rounded-2xl p-4 pb-24 sm:p-6 sm:pb-24"
                         onMouseMove={(event) => {
                             const rect = event.currentTarget.getBoundingClientRect();
                             const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -584,11 +584,11 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                             </svg>
                                         </button>
                                     </div>
-                                    <div className="flex w-full items-center justify-center gap-8">
+                                    <div className="absolute bottom-4 left-4 right-4 flex w-auto items-center sm:bottom-6 sm:left-6 sm:right-6">
                                         <button
                                             type="button"
                                             onClick={goToPreviousCaption}
-                                            className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="mr-auto rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                             disabled={currentIndex === 0 || voteSaving}
                                         >
                                             Back
@@ -596,7 +596,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                         <button
                                             type="button"
                                             onClick={goToNextCaption}
-                                            className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                             disabled={isLastCaption || voteSaving}
                                         >
                                             Next
