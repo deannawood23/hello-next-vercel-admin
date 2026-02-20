@@ -40,6 +40,14 @@ function shuffleItems<T>(items: T[]): T[] {
     return shuffled;
 }
 
+function hasDisplayableCaption(
+    item: Pick<CaptionSessionItem, 'imageUrl' | 'caption'>
+): boolean {
+    const imageUrl = item.imageUrl?.trim();
+    const captionContent = item.caption.content?.trim();
+    return Boolean(imageUrl && captionContent);
+}
+
 export function GalleryClient({ userEmail }: GalleryClientProps) {
     const router = useRouter();
     const seenCaptionIdsRef = useRef<Set<string>>(new Set());
@@ -184,6 +192,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                             caption,
                         }))
                     )
+                    .filter(hasDisplayableCaption)
                     .filter((item) => {
                         const captionCreatedMs = Date.parse(
                             item.caption.created_datetime_utc
@@ -514,7 +523,7 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                                     Caption {currentIndex + 1} of {captionItems.length}
                                 </p>
                                 <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-lg text-[#EDEDEF]">
-                                    {currentItem.caption.content ?? '(empty caption)'}
+                                    {currentItem.caption.content}
                                 </p>
 
                                 {!canVote && (
