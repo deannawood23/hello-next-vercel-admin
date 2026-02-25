@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    let response = NextResponse.next({ request });
+    const response = NextResponse.next({ request });
     const pathname = request.nextUrl.pathname;
     const isAuthFreePath =
         pathname === '/login' || pathname.startsWith('/auth/callback');
