@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { supabase } from '../../src/lib/supabase/client';
 
@@ -101,8 +102,10 @@ type NewPostClientProps = {
 };
 
 export function NewPostClient({ userEmail }: NewPostClientProps) {
+    const router = useRouter();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -262,6 +265,18 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
         }
     };
 
+    const handleSignOut = async () => {
+        setSigningOut(true);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            setErrorMessage(error.message);
+            setSigningOut(false);
+            return;
+        }
+        router.push('/login');
+        router.refresh();
+    };
+
     return (
         <main className="linear-page-bg min-h-screen px-4 py-10 text-[#EDEDEF] sm:px-8">
             <div aria-hidden="true" className="linear-grid absolute inset-0 opacity-100" />
@@ -270,6 +285,50 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
             <div aria-hidden="true" className="ambient-blob ambient-blob-secondary" />
             <div aria-hidden="true" className="ambient-blob ambient-blob-tertiary" />
             <div aria-hidden="true" className="ambient-blob ambient-blob-bottom" />
+            <div className="fixed right-4 top-4 z-20 flex items-center gap-2">
+                <Link
+                    href="/vote"
+                    className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08]"
+                >
+                    Back to voting
+                </Link>
+                <details className="group relative">
+                    <summary
+                        className="inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[0_2px_20px_rgba(0,0,0,0.45)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5E6AD2]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050506]"
+                        aria-label="Account"
+                    >
+                        <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-5 w-5"
+                        >
+                            <path d="M20 21a8 8 0 0 0-16 0" />
+                            <circle cx="12" cy="8" r="4" />
+                        </svg>
+                    </summary>
+                    <div className="linear-glass absolute right-0 mt-2 w-64 rounded-2xl p-4">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#8A8F98]">
+                            Signed in as
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#EDEDEF]">
+                            {userEmail || 'Unknown user'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleSignOut}
+                            className="mt-4 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={signingOut}
+                        >
+                            Log out
+                        </button>
+                    </div>
+                </details>
+            </div>
 
             <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col gap-8">
                 <header className="space-y-3 pt-8 sm:pt-12">
@@ -280,12 +339,6 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
                         Upload an image and generate captions
                     </h1>
                     <p className="text-sm text-[#8A8F98]">Signed in as {userEmail}</p>
-                    <Link
-                        href="/"
-                        className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08]"
-                    >
-                        Back to voting
-                    </Link>
                 </header>
 
                 <section className="linear-glass space-y-4 rounded-2xl p-4 sm:p-6">

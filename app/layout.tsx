@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "./components/AppShell";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -27,7 +28,8 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} ${playfairDisplay.variable} antialiased`}
       >
-        {children}
+        <AppShell />
+        <div className="pt-[72px]">{children}</div>
       </body>
     </html>
   );

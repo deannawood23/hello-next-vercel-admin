@@ -403,7 +403,13 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
             <div aria-hidden="true" className="ambient-blob ambient-blob-secondary" />
             <div aria-hidden="true" className="ambient-blob ambient-blob-tertiary" />
             <div aria-hidden="true" className="ambient-blob ambient-blob-bottom" />
-            <div className="fixed right-4 top-4 z-20">
+            <div className="fixed right-4 top-4 z-20 flex items-center gap-2">
+                <Link
+                    href="/new"
+                    className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_12px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] transition duration-200 ease-out hover:bg-[#6872D9]"
+                >
+                    New Post
+                </Link>
                 <details className="group relative">
                     <summary
                         className="inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[0_2px_20px_rgba(0,0,0,0.45)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5E6AD2]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050506]"
@@ -450,24 +456,6 @@ export function GalleryClient({ userEmail }: GalleryClientProps) {
                         Newest Crackd Captions 👩‍🍳
                     </h1>
                 </header>
-
-                <section className="linear-glass rounded-2xl p-4 sm:p-6">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[#8A8F98]">
-                        Create
-                    </p>
-                    <h2 className="mt-2 text-xl font-semibold text-[#EDEDEF]">
-                        Want to generate new captions from your own image?
-                    </h2>
-                    <p className="mt-2 text-sm text-[#8A8F98]">
-                        Start a new post and step through generated captions one by one.
-                    </p>
-                    <Link
-                        href="/new-post"
-                        className="mt-4 inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_12px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] transition duration-200 ease-out hover:bg-[#6872D9]"
-                    >
-                        New Post
-                    </Link>
-                </section>
 
                 {loading && <p className="text-[#8A8F98]">Loading...</p>}
                 {error && !loading && (
