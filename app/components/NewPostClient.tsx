@@ -312,16 +312,10 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
                         </svg>
                     </summary>
                     <div className="linear-glass absolute right-0 mt-2 w-64 rounded-2xl p-4">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#8A8F98]">
-                            Signed in as
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-[#EDEDEF]">
-                            {userEmail || 'Unknown user'}
-                        </p>
                         <button
                             type="button"
                             onClick={handleSignOut}
-                            className="mt-4 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={signingOut}
                         >
                             Log out
@@ -338,7 +332,6 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
                     <h1 className="bg-gradient-to-b from-white via-white/95 to-white/65 bg-clip-text font-[var(--font-playfair)] text-4xl font-semibold leading-tight tracking-tight text-transparent sm:text-5xl">
                         Upload an image and generate captions
                     </h1>
-                    <p className="text-sm text-[#8A8F98]">Signed in as {userEmail}</p>
                 </header>
 
                 <section className="linear-glass space-y-4 rounded-2xl p-4 sm:p-6">
@@ -389,14 +382,14 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
                                 <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-lg text-[#EDEDEF]">
                                     {currentCaption}
                                 </p>
-                                <div className="flex items-center gap-3">
+                                <div className="flex w-full items-center">
                                     <button
                                         type="button"
                                         onClick={() =>
                                             setCaptionIndex((prev) => (prev > 0 ? prev - 1 : 0))
                                         }
                                         disabled={isFirstCaption}
-                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="mr-auto rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         Back
                                     </button>
@@ -408,7 +401,7 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
                                             )
                                         }
                                         disabled={isLastCaption}
-                                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         Next
                                     </button>
