@@ -113,9 +113,7 @@ export function AdminShell({ children, userEmail }: AdminShellProps) {
                                 <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#8A8F98]">Admin</p>
                                 <p className="mt-1 truncate text-sm text-[#B6BCC6]">{userEmail ?? 'Superadmin'}</p>
                             </div>
-                        ) : (
-                            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#8A8F98]">ADM</p>
-                        )}
+                        ) : null}
                         <button
                             type="button"
                             onClick={() => setIsCollapsed((prev) => !prev)}
