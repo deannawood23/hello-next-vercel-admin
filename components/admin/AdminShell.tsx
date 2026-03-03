@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { supabase } from '../../src/lib/supabase/client';
 
 type AdminShellProps = {
     children: React.ReactNode;
@@ -62,16 +63,6 @@ const navItems: NavItem[] = [
             </svg>
         ),
     },
-    {
-        href: '/admin#settings',
-        label: 'Settings',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.5 1.5 0 0 0 .3 1.65l.06.06a1.8 1.8 0 0 1 0 2.54 1.8 1.8 0 0 1-2.54 0l-.06-.06a1.5 1.5 0 0 0-1.65-.3 1.5 1.5 0 0 0-.9 1.37V21a1.8 1.8 0 0 1-3.6 0v-.09a1.5 1.5 0 0 0-.98-1.4 1.5 1.5 0 0 0-1.65.3l-.06.06a1.8 1.8 0 0 1-2.54 0 1.8 1.8 0 0 1 0-2.54l.06-.06a1.5 1.5 0 0 0 .3-1.65 1.5 1.5 0 0 0-1.37-.9H3a1.8 1.8 0 0 1 0-3.6h.09a1.5 1.5 0 0 0 1.4-.98 1.5 1.5 0 0 0-.3-1.65l-.06-.06a1.8 1.8 0 0 1 0-2.54 1.8 1.8 0 0 1 2.54 0l.06.06a1.5 1.5 0 0 0 1.65.3h.08a1.5 1.5 0 0 0 .9-1.37V3a1.8 1.8 0 0 1 3.6 0v.09a1.5 1.5 0 0 0 .98 1.4 1.5 1.5 0 0 0 1.65-.3l.06-.06a1.8 1.8 0 0 1 2.54 0 1.8 1.8 0 0 1 0 2.54l-.06.06a1.5 1.5 0 0 0-.3 1.65v.08a1.5 1.5 0 0 0 1.37.9H21a1.8 1.8 0 0 1 0 3.6h-.09a1.5 1.5 0 0 0-1.4.98z" />
-            </svg>
-        ),
-    },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -88,7 +79,21 @@ function isActive(pathname: string, href: string) {
 
 export function AdminShell({ children, userEmail }: AdminShellProps) {
     const pathname = usePathname();
+    const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
+
+    const handleSignOut = async () => {
+        setSigningOut(true);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            setSigningOut(false);
+            return;
+        }
+        router.push('/login');
+        router.refresh();
+    };
 
     return (
         <div className="linear-page-bg min-h-screen text-[#EDEDEF]">
@@ -98,13 +103,37 @@ export function AdminShell({ children, userEmail }: AdminShellProps) {
             <div aria-hidden="true" className="ambient-blob ambient-blob-secondary" />
             <div className="relative z-10 flex min-h-screen">
                 <aside
-                    className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-[#09090d]/95 p-4 backdrop-blur transition-transform duration-200 lg:static lg:translate-x-0 ${
+                    className={`fixed inset-y-0 left-0 z-40 border-r border-white/10 bg-[#09090d]/95 p-4 backdrop-blur transition-all duration-200 lg:static lg:translate-x-0 ${
                         isOpen ? 'translate-x-0' : '-translate-x-full'
-                    }`}
+                    } ${isCollapsed ? 'w-20' : 'w-64'}`}
                 >
-                    <div className="mb-6 px-2">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#8A8F98]">Admin</p>
-                        <p className="mt-1 truncate text-sm text-[#B6BCC6]">{userEmail ?? 'Superadmin'}</p>
+                    <div className="mb-6 flex items-start justify-between gap-2 px-2">
+                        {!isCollapsed ? (
+                            <div>
+                                <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#8A8F98]">Admin</p>
+                                <p className="mt-1 truncate text-sm text-[#B6BCC6]">{userEmail ?? 'Superadmin'}</p>
+                            </div>
+                        ) : (
+                            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#8A8F98]">ADM</p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setIsCollapsed((prev) => !prev)}
+                            className="hidden h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-[#C2C8D2] transition hover:border-white/20 hover:bg-white/[0.08] lg:inline-flex"
+                            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className={`h-4 w-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
+                                aria-hidden="true"
+                            >
+                                <path d="m15 18-6-6 6-6" />
+                            </svg>
+                        </button>
                     </div>
                     <nav className="space-y-1">
                         {navItems.map((item) => {
@@ -114,14 +143,14 @@ export function AdminShell({ children, userEmail }: AdminShellProps) {
                                     key={item.href}
                                     href={item.href}
                                     onClick={() => setIsOpen(false)}
-                                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                    className={`flex items-center rounded-lg border py-2 text-sm font-semibold transition ${
                                         active
                                             ? 'border-[#5E6AD2]/60 bg-[#5E6AD2]/25 text-white'
                                             : 'border-transparent text-[#C2C8D2] hover:border-white/10 hover:bg-white/[0.06]'
-                                    }`}
+                                    } ${isCollapsed ? 'justify-center px-2' : 'gap-2 px-3'}`}
                                 >
                                     {item.icon}
-                                    {item.label}
+                                    {!isCollapsed ? item.label : null}
                                 </Link>
                             );
                         })}
@@ -151,7 +180,47 @@ export function AdminShell({ children, userEmail }: AdminShellProps) {
                                 <path d="M3 18h18" />
                             </svg>
                         </button>
-                        <h1 className="font-[var(--font-playfair)] text-xl font-semibold tracking-tight text-[#EDEDEF]">Dashboard</h1>
+                        <h1 className="font-[var(--font-playfair)] text-xl font-semibold tracking-tight text-[#EDEDEF]">
+                            Dashboard
+                        </h1>
+                        <div className="ml-auto">
+                            <details className="group relative">
+                                <summary
+                                    className="inline-flex h-9 w-9 list-none items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[#EDEDEF] shadow-[0_2px_20px_rgba(0,0,0,0.45)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5E6AD2]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050506]"
+                                    aria-label="Account"
+                                >
+                                    <svg
+                                        aria-hidden="true"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="h-5 w-5"
+                                    >
+                                        <path d="M20 21a8 8 0 0 0-16 0" />
+                                        <circle cx="12" cy="8" r="4" />
+                                    </svg>
+                                </summary>
+                                <div className="linear-glass absolute right-0 mt-2 w-64 rounded-2xl p-4">
+                                    <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#8A8F98]">
+                                        Signed in as
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-[#EDEDEF]">
+                                        {userEmail ?? 'Superadmin'}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={handleSignOut}
+                                        className="mt-4 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                        disabled={signingOut}
+                                    >
+                                        Log out
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
                     </header>
                     <main className="flex-1 p-4 sm:p-6">{children}</main>
                 </div>
