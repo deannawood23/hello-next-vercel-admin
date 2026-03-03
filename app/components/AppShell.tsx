@@ -5,10 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../src/lib/supabase/client';
 
-const NAV_ITEMS = [
-    { href: '/vote', label: 'Vote' },
-    { href: '/new', label: 'New Post' },
-];
+const NAV_ITEMS = [{ href: '/admin', label: 'Overview' }];
 
 export function AppShell() {
     const pathname = usePathname();
@@ -57,6 +54,10 @@ export function AppShell() {
         router.refresh();
     };
 
+    if (pathname.startsWith('/admin')) {
+        return null;
+    }
+
     return (
         <header className="fixed left-0 right-0 top-0 z-[100] border-b border-white/15 bg-[#050506] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
             <span
@@ -68,10 +69,7 @@ export function AppShell() {
                     {NAV_ITEMS.map((item) => {
                         const isActive =
                             pathname === item.href ||
-                            pathname.startsWith(`${item.href}/`) ||
-                            (item.href === '/new' &&
-                                (pathname === '/new-post' ||
-                                    pathname.startsWith('/new-post/')));
+                            pathname.startsWith(`${item.href}/`);
                         return (
                             <Link
                                 key={item.href}

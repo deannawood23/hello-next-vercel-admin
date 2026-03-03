@@ -1,0 +1,44 @@
+import type { ReactNode } from 'react';
+
+type DataTableProps = {
+    columns: string[];
+    rows: ReactNode[][];
+    emptyMessage?: string;
+};
+
+export function DataTable({ columns, rows, emptyMessage = 'No rows found.' }: DataTableProps) {
+    return (
+        <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
+            <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-[0.14em] text-[#8A8F98]">
+                    <tr>
+                        {columns.map((column) => (
+                            <th key={column} className="px-4 py-3 font-medium">
+                                {column}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.length === 0 ? (
+                        <tr>
+                            <td colSpan={columns.length} className="px-4 py-5 text-[#A6ACB6]">
+                                {emptyMessage}
+                            </td>
+                        </tr>
+                    ) : (
+                        rows.map((cells, index) => (
+                            <tr key={`row-${index}`} className="border-b border-white/5 last:border-b-0">
+                                {cells.map((cell, cellIndex) => (
+                                    <td key={`cell-${index}-${cellIndex}`} className="px-4 py-3 align-top text-[#D4D8DF]">
+                                        {cell}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
+}

@@ -1,8 +1,5 @@
-import { requireUser } from '../src/lib/auth/requireUser';
-import { GalleryClient } from './components/GalleryClient';
+import { redirect } from 'next/navigation';
 
 export default async function Home() {
-    const { user } = await requireUser();
-
-    return <GalleryClient userEmail={user.email ?? ''} />;
+    redirect('/admin');
 }

@@ -287,10 +287,10 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
             <div aria-hidden="true" className="ambient-blob ambient-blob-bottom" />
             <div className="fixed right-4 top-4 z-20 flex items-center gap-2">
                 <Link
-                    href="/vote"
+                    href="/admin"
                     className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#EDEDEF] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.08]"
                 >
-                    Back to voting
+                    Back to admin
                 </Link>
                 <details className="group relative">
                     <summary
