@@ -47,6 +47,25 @@ async function signInWithGoogle() {
 }
 
 export default async function LoginPage() {
+    const supabase = await createSupabaseServerClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_superadmin')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (profile?.is_superadmin === true) {
+            redirect('/admin');
+        }
+
+        redirect('/protected');
+    }
+
     return (
         <main className="linear-page-bg min-h-screen px-4 py-10 text-[#EDEDEF] sm:px-8">
             <div aria-hidden="true" className="linear-grid absolute inset-0 opacity-100" />

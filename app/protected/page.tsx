@@ -16,11 +16,11 @@ export default async function ProtectedPage() {
         <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-12 text-slate-900 sm:px-8">
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="space-y-2">
-                    <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+                    <p className="text-sm font-medium uppercase tracking-wide text-rose-700">
                         Protected
                     </p>
-                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight">
-                        You&apos;re signed in
+                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-rose-700">
+                        ERROR: SUPERADMIN NOT FOUND
                     </h1>
                 </div>
 

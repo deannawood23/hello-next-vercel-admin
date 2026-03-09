@@ -10,8 +10,12 @@ export async function requireSuperadmin() {
         .eq('id', user.id)
         .maybeSingle();
 
-    if (error || profile?.is_superadmin !== true) {
+    if (error) {
         redirect('/login');
+    }
+
+    if (profile?.is_superadmin !== true) {
+        redirect('/protected');
     }
 
     return { user, supabase, profile };

@@ -63,6 +63,137 @@ const navItems: NavItem[] = [
             </svg>
         ),
     },
+    {
+        href: '/admin/data/caption-requests',
+        label: 'Caption Requests',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 6h16" />
+                <path d="M4 12h16" />
+                <path d="M4 18h10" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/caption-examples',
+        label: 'Caption Examples',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 5h10v14H4z" />
+                <path d="M14 9h6v10h-6z" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/humor-flavors',
+        label: 'Humor Flavors',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M5 19h14" />
+                <path d="M7 19V8h10v11" />
+                <path d="M9 8V5h6v3" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/humor-flavor-steps',
+        label: 'Humor Flavor Steps',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <circle cx="6" cy="6" r="1.5" />
+                <circle cx="6" cy="12" r="1.5" />
+                <circle cx="6" cy="18" r="1.5" />
+                <path d="M10 6h8" />
+                <path d="M10 12h8" />
+                <path d="M10 18h8" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/humor-mix',
+        label: 'Humor Mix',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 12h16" />
+                <path d="M12 4v16" />
+                <circle cx="12" cy="12" r="8" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/terms',
+        label: 'Terms',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 6h16" />
+                <path d="M4 12h11" />
+                <path d="M4 18h8" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/llm-models',
+        label: 'LLM Models',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <path d="M9 9h6v6H9z" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/llm-providers',
+        label: 'LLM Providers',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <circle cx="12" cy="7" r="3" />
+                <path d="M4 19a8 8 0 0 1 16 0" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/llm-prompt-chains',
+        label: 'LLM Prompt Chains',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <rect x="3" y="6" width="6" height="6" rx="1.2" />
+                <rect x="15" y="12" width="6" height="6" rx="1.2" />
+                <path d="M9 9h6" />
+                <path d="M15 15H9" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/llm-responses',
+        label: 'LLM Responses',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 5h16v10H7l-3 3V5z" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/allowed-signup-domains',
+        label: 'Allowed Domains',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18" />
+                <path d="M12 3a14 14 0 0 1 0 18" />
+                <path d="M12 3a14 14 0 0 0 0 18" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/data/whitelisted-email-addresses',
+        label: 'Whitelisted Emails',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <rect x="3" y="6" width="18" height="12" rx="2" />
+                <path d="m4 8 8 6 8-6" />
+            </svg>
+        ),
+    },
 ];
 
 function isActive(pathname: string, href: string) {
