@@ -1413,6 +1413,179 @@ export default async function AdminResourcePage({
         );
     }
 
+    if (resource === 'llm-prompt-chains') {
+        const query = String(resolvedSearchParams?.q ?? '').trim();
+        const requestedPage = Number.parseInt(String(resolvedSearchParams?.page ?? '1'), 10);
+        const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+        const pageSize = 50;
+        const queryNumber =
+            query.length > 0 && !Number.isNaN(Number(query)) ? Number(query) : null;
+
+        let countQuery = supabase
+            .from('llm_prompt_chains')
+            .select('id', { count: 'exact', head: true });
+        let rowsQuery = supabase
+            .from('llm_prompt_chains')
+            .select('*')
+            .order('created_datetime_utc', { ascending: false });
+
+        if (queryNumber !== null) {
+            const filter = `id.eq.${queryNumber},caption_request_id.eq.${queryNumber}`;
+            countQuery = countQuery.or(filter);
+            rowsQuery = rowsQuery.or(filter);
+        } else if (query.length > 0) {
+            const emptyRows: ReactNode[][] = [];
+            return (
+                <div className="space-y-4">
+                    <div>
+                        <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {config.title}
+                        </h2>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">
+                            Review prompt chains and jump into their generated outputs.
+                        </p>
+                    </div>
+
+                    <form method="get" className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                            type="text"
+                            name="q"
+                            defaultValue={query}
+                            placeholder="Search by prompt chain ID or caption request ID"
+                            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                        />
+                        <button
+                            type="submit"
+                            className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Search
+                        </button>
+                    </form>
+
+                    <DataTable
+                        columns={['ID', 'CREATED', 'CAPTION REQUEST']}
+                        rows={emptyRows}
+                        emptyMessage="Enter a numeric prompt chain ID or caption request ID."
+                    />
+                </div>
+            );
+        }
+
+        const totalCountResult = await countQuery;
+        const totalPromptChains = totalCountResult.count ?? 0;
+        const totalPages = Math.max(1, Math.ceil(totalPromptChains / pageSize));
+        const safePage = Math.min(currentPage, totalPages);
+        const startIndex = (safePage - 1) * pageSize;
+        const promptChainsResult = await rowsQuery.range(startIndex, startIndex + pageSize - 1);
+        const promptChainRows = (promptChainsResult.data ?? [])
+            .map((row) => asRecord(row))
+            .map((row) => {
+                const id = String(row.id ?? 'N/A');
+                const created = formatEasternTimestamp(
+                    pickDateValue(row, ['created_datetime_utc', 'created_datetime_', 'created_at'])
+                );
+                const captionRequestId =
+                    typeof row.caption_request_id === 'number'
+                        ? String(row.caption_request_id)
+                        : pickString(row, ['caption_request_id'], 'N/A');
+
+                return [
+                    <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
+                        {id}
+                    </span>,
+                    <span key={`created-${id}`} className="text-[#D4D8DF]">
+                        {created}
+                    </span>,
+                    <span className="font-mono text-xs text-[#D4D8DF]" key={`caption-request-${id}`}>
+                        {captionRequestId}
+                    </span>,
+                ];
+            });
+
+        return (
+            <div className="space-y-4">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">
+                        Review prompt chains and jump into their generated outputs.
+                    </p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <form method="get" className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                        type="text"
+                        name="q"
+                        defaultValue={String(resolvedSearchParams?.q ?? '')}
+                        placeholder="Search by prompt chain ID or caption request ID"
+                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                    />
+                    <button
+                        type="submit"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Search
+                    </button>
+                </form>
+
+                <DataTable
+                    columns={['ID', 'CREATED', 'CAPTION REQUEST']}
+                    rows={promptChainRows}
+                    emptyMessage="No prompt chains match this search."
+                />
+
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-[#A6ACB6] sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                        Showing {totalPromptChains === 0 ? 0 : startIndex + 1} - {Math.min(startIndex + pageSize, totalPromptChains)} of {totalPromptChains} prompt chains
+                    </span>
+                    <div className="flex items-center gap-3">
+                        {safePage > 1 ? (
+                            <Link
+                                href={
+                                    query
+                                        ? `/admin/data/llm-prompt-chains?q=${encodeURIComponent(query)}&page=${safePage - 1}`
+                                        : `/admin/data/llm-prompt-chains?page=${safePage - 1}`
+                                }
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Previous
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Previous
+                            </span>
+                        )}
+                        <span>
+                            Page {safePage} of {totalPages}
+                        </span>
+                        {safePage < totalPages ? (
+                            <Link
+                                href={
+                                    query
+                                        ? `/admin/data/llm-prompt-chains?q=${encodeURIComponent(query)}&page=${safePage + 1}`
+                                        : `/admin/data/llm-prompt-chains?page=${safePage + 1}`
+                                }
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Next
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Next
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (resource === 'llm-models') {
         const editId = String(resolvedSearchParams?.edit ?? '').trim();
         const isCreating = String(resolvedSearchParams?.create ?? '').trim() === '1';
