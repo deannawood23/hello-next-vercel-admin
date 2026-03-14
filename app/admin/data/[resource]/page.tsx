@@ -20,7 +20,7 @@ const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
     'humor-flavors': {
         table: 'humor_flavors',
         title: 'Humor Flavors',
-        description: 'Read humor flavor records.',
+        description: 'Organize flavor definitions and step sequences.',
         mode: 'read',
     },
     'humor-flavor-steps': {
@@ -302,6 +302,101 @@ export default async function AdminResourcePage({
         redirect('/admin/data/caption-examples');
     }
 
+    async function saveHumorFlavor(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-flavors') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const flavorId = String(formData.get('id') ?? '').trim();
+        if (!flavorId) {
+            return;
+        }
+
+        const slug = String(formData.get('slug') ?? '').trim();
+        const description = String(formData.get('description') ?? '').trim();
+        const themesText = String(formData.get('themes') ?? '').trim();
+        const themes = themesText.length > 0 ? themesText.split('\n').map((value) => value.trim()).filter(Boolean) : [];
+
+        await supabase
+            .from('humor_flavors')
+            .update({
+                slug,
+                description,
+                themes,
+            })
+            .eq('id', Number.isNaN(Number(flavorId)) ? flavorId : Number(flavorId));
+
+        revalidatePath('/admin/data/humor-flavors');
+        revalidatePath(`/admin/data/humor-flavors/${flavorId}`);
+        revalidatePath('/admin');
+        redirect('/admin/data/humor-flavors');
+    }
+
+    async function duplicateHumorFlavor(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-flavors') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const flavorId = String(formData.get('id') ?? '').trim();
+        if (!flavorId) {
+            return;
+        }
+
+        const originalResult = await supabase
+            .from('humor_flavors')
+            .select('*')
+            .eq('id', Number.isNaN(Number(flavorId)) ? flavorId : Number(flavorId))
+            .maybeSingle();
+
+        const original = asRecord(originalResult.data);
+        if (!originalResult.data) {
+            return;
+        }
+
+        const baseSlug = pickString(original, ['slug'], `flavor-${flavorId}`);
+        const duplicateSlug = `${baseSlug}-copy`;
+        const payload = { ...original } as Record<string, unknown>;
+        delete payload.id;
+        delete payload.created_at;
+        delete payload.created_datetime_utc;
+        delete payload.updated_at;
+        delete payload.modified_datetime_utc;
+        payload.slug = duplicateSlug;
+
+        await supabase.from('humor_flavors').insert(payload);
+
+        revalidatePath('/admin/data/humor-flavors');
+        revalidatePath('/admin');
+    }
+
+    async function deleteHumorFlavor(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-flavors') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const flavorId = String(formData.get('id') ?? '').trim();
+        if (!flavorId) {
+            return;
+        }
+
+        await supabase
+            .from('humor_flavors')
+            .delete()
+            .eq('id', Number.isNaN(Number(flavorId)) ? flavorId : Number(flavorId));
+
+        revalidatePath('/admin/data/humor-flavors');
+        revalidatePath('/admin');
+    }
+
     async function deleteRow(formData: FormData) {
         'use server';
 
@@ -451,6 +546,176 @@ export default async function AdminResourcePage({
                     emptyMessage={`No rows found in ${config.table}.`}
                     rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
                 />
+            </div>
+        );
+    }
+
+    if (resource === 'humor-flavors') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const editResult = editId
+            ? await supabase
+                  .from('humor_flavors')
+                  .select('*')
+                  .eq('id', Number.isNaN(Number(editId)) ? editId : Number(editId))
+                  .maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const editSlug = pickString(editRow, ['slug'], '');
+        const editDescription = pickString(editRow, ['description'], '');
+        const editThemesValue = Array.isArray(editRow.themes)
+            ? editRow.themes.map((value) => String(value)).join('\n')
+            : pickString(editRow, ['themes'], '');
+
+        const flavorRows = data.map((row) => {
+            const rawId = row.id;
+            const id =
+                typeof rawId === 'number'
+                    ? String(rawId)
+                    : typeof rawId === 'string' && rawId.trim().length > 0
+                    ? rawId
+                    : 'N/A';
+            const slug = pickString(row, ['slug'], 'N/A');
+            const description = pickString(row, ['description'], 'N/A');
+            const themes = Array.isArray(row.themes)
+                ? row.themes.map((value) => String(value)).join(', ')
+                : pickString(row, ['themes'], 'N/A');
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
+                    {id}
+                </span>,
+                <span key={`slug-${id}`} className="font-mono text-xs text-[#D4D8DF]">
+                    {slug}
+                </span>,
+                <span
+                    key={`description-${id}`}
+                    className="block min-w-[260px] max-w-[420px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {description}
+                </span>,
+                <span
+                    key={`themes-${id}`}
+                    className="block min-w-[220px] max-w-[360px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {themes}
+                </span>,
+                <div className="flex flex-wrap gap-2" key={`actions-${id}`}>
+                    <Link
+                        href={`/admin/data/humor-flavors/${id}`}
+                        className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                    >
+                        Manage Steps
+                    </Link>
+                    <form action={duplicateHumorFlavor}>
+                        <input type="hidden" name="id" value={id} />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                        >
+                            Duplicate
+                        </button>
+                    </form>
+                    <Link
+                        href={`/admin/data/humor-flavors?edit=${id}`}
+                        className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Edit
+                    </Link>
+                    <form action={deleteHumorFlavor}>
+                        <input type="hidden" name="id" value={id} />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                        >
+                            Delete
+                        </button>
+                    </form>
+                </div>,
+            ];
+        });
+
+        return (
+            <div className="space-y-4">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">{config.description}</p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DataTable
+                    columns={['ID', 'Slug', 'Description', 'Themes', 'Actions']}
+                    rows={flavorRows}
+                    emptyMessage={`No rows found in ${config.table}.`}
+                    rowClassName="transition-colors hover:bg-white/[0.04]"
+                />
+
+                {editId && editResult.data ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    Edit Humor Flavor
+                                </h3>
+                                <p className="mt-1 font-mono text-xs text-[#8A8F98]">ID: {editId}</p>
+                            </div>
+
+                            <form action={saveHumorFlavor} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Slug</span>
+                                    <input
+                                        type="text"
+                                        name="slug"
+                                        defaultValue={editSlug}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Description</span>
+                                    <textarea
+                                        name="description"
+                                        defaultValue={editDescription}
+                                        rows={5}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Themes</span>
+                                    <textarea
+                                        name="themes"
+                                        defaultValue={editThemesValue}
+                                        rows={5}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/humor-flavors"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        Save changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         );
     }
