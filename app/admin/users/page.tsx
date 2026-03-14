@@ -38,53 +38,47 @@ export default async function AdminUsersPage({
     const normalizedQuery = query.toLowerCase();
     const requestedPage = Number.parseInt(String(params?.page ?? '1'), 10);
     const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-    const searchFilter = query
-        ? `email.ilike.%${query}%,id.ilike.%${query}%`
-        : null;
-
-    let countQuery = supabase
+    const totalCountResult = await supabase
         .from('profiles')
         .select('id', { count: 'exact', head: true });
+    const allUsersCount = totalCountResult.count ?? 0;
+    let data: unknown[] = [];
 
-    if (searchFilter) {
-        countQuery = countQuery.or(searchFilter);
-    }
-
-    const countResult = await countQuery;
-    const totalUsers = countResult.count ?? 0;
-    const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const safeRangeFrom = (safePage - 1) * PAGE_SIZE;
-    const safeRangeTo = safeRangeFrom + PAGE_SIZE - 1;
-
-    let primaryQuery = supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(safeRangeFrom, safeRangeTo);
-
-    if (searchFilter) {
-        primaryQuery = primaryQuery.or(searchFilter);
-    }
-
-    const primary = await primaryQuery;
-    let fallback = null;
-
-    if (primary.error) {
-        let fallbackQuery = supabase
+    if (query) {
+        const primary = await supabase
             .from('profiles')
             .select('*')
-            .order('created_datetime_utc', { ascending: false })
+            .order('created_at', { ascending: false })
+            .range(0, 4999);
+        const fallback = primary.error
+            ? await supabase
+                  .from('profiles')
+                  .select('*')
+                  .order('created_datetime_utc', { ascending: false })
+                  .range(0, 4999)
+            : null;
+        data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
+    } else {
+        const totalPages = Math.max(1, Math.ceil(allUsersCount / PAGE_SIZE));
+        const safePage = Math.min(currentPage, totalPages);
+        const safeRangeFrom = (safePage - 1) * PAGE_SIZE;
+        const safeRangeTo = safeRangeFrom + PAGE_SIZE - 1;
+
+        const primary = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
             .range(safeRangeFrom, safeRangeTo);
-
-        if (searchFilter) {
-            fallbackQuery = fallbackQuery.or(searchFilter);
-        }
-
-        fallback = await fallbackQuery;
+        const fallback = primary.error
+            ? await supabase
+                  .from('profiles')
+                  .select('*')
+                  .order('created_datetime_utc', { ascending: false })
+                  .range(safeRangeFrom, safeRangeTo)
+            : null;
+        data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
     }
 
-    const data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
     const filteredData = data.filter((raw) => {
         if (!normalizedQuery) {
             return true;
@@ -95,8 +89,14 @@ export default async function AdminUsersPage({
         const email = pickString(row, ['email'], '').toLowerCase();
         return id.includes(normalizedQuery) || email.includes(normalizedQuery);
     });
+    const totalUsers = query ? filteredData.length : allUsersCount;
+    const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const safeRangeFrom = (safePage - 1) * PAGE_SIZE;
+    const safeRangeTo = safeRangeFrom + PAGE_SIZE - 1;
+    const pagedData = filteredData.slice(safeRangeFrom, safeRangeTo + 1);
 
-    const rows = filteredData.map((raw) => {
+    const rows = pagedData.map((raw) => {
         const row = asRecord(raw);
         const id = pickString(row, ['id'], 'N/A');
         const email = pickString(row, ['email'], 'Unavailable');
