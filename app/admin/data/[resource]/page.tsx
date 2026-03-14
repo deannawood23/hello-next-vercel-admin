@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { DataTable } from '../../../../components/admin/DataTable';
 import { requireSuperadmin } from '../../../../src/lib/auth/requireSuperadmin';
 import { asRecord, formatDate, pickDateValue, pickString, shortId } from '../../_lib';
@@ -203,10 +203,13 @@ async function fetchTableRows(
 
 export default async function AdminResourcePage({
     params,
+    searchParams,
 }: {
     params: Promise<{ resource: string }>;
+    searchParams?: Promise<{ edit?: string }>;
 }) {
     const { resource } = await params;
+    const resolvedSearchParams = searchParams ? await searchParams : undefined;
     const config = RESOURCE_CONFIG[resource];
     if (!config) {
         notFound();
@@ -256,6 +259,43 @@ export default async function AdminResourcePage({
 
         revalidatePath(`/admin/data/${resource}`);
         revalidatePath('/admin');
+    }
+
+    async function saveCaptionExample(formData: FormData) {
+        'use server';
+
+        if (resource !== 'caption-examples') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const captionExampleId = String(formData.get('id') ?? '').trim();
+        if (!captionExampleId) {
+            return;
+        }
+
+        const imageDescriptionValue = String(formData.get('image_description') ?? '').trim();
+        const captionValue = String(formData.get('caption') ?? '').trim();
+        const explanationValue = String(formData.get('explanation') ?? '').trim();
+        const priorityRaw = String(formData.get('priority') ?? '').trim();
+        const priorityValue =
+            priorityRaw.length > 0 && !Number.isNaN(Number(priorityRaw))
+                ? Number(priorityRaw)
+                : null;
+
+        await supabase
+            .from('caption_examples')
+            .update({
+                image_description: imageDescriptionValue,
+                caption: captionValue,
+                explanation: explanationValue,
+                priority: priorityValue,
+            })
+            .eq('id', captionExampleId);
+
+        revalidatePath('/admin/data/caption-examples');
+        revalidatePath('/admin');
+        redirect('/admin/data/caption-examples');
     }
 
     async function deleteRow(formData: FormData) {
@@ -405,12 +445,36 @@ export default async function AdminResourcePage({
                     columns={['ID', 'Image', 'Created By', 'Created']}
                     rows={requestRows}
                     emptyMessage={`No rows found in ${config.table}.`}
+                    rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
                 />
             </div>
         );
     }
 
     if (resource === 'caption-examples') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const editResult = editId
+            ? await supabase
+                  .from('caption_examples')
+                  .select('*')
+                  .eq('id', editId)
+                  .maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const editImageDescription = pickString(
+            editRow,
+            ['image_description', 'image_notes', 'description'],
+            ''
+        );
+        const editCaption = pickString(editRow, ['caption', 'content', 'text'], '');
+        const editExplanation = pickString(
+            editRow,
+            ['explanation', 'reasoning', 'notes', 'additional_context'],
+            ''
+        );
+        const editPriority =
+            typeof editRow.priority === 'number' ? String(editRow.priority) : '';
+
         const exampleRows = data.map((row) => {
             const rawId = row.id;
             const id =
@@ -431,7 +495,6 @@ export default async function AdminResourcePage({
                 'N/A'
             );
             const match = getMatchForRow(row);
-            const rawJson = JSON.stringify(row, null, 2);
 
             return [
                 <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
@@ -457,27 +520,12 @@ export default async function AdminResourcePage({
                 </span>,
                 match ? (
                     <div className="space-y-2" key={`actions-${id}`}>
-                        <details>
-                            <summary className="cursor-pointer text-xs text-[#B7C5FF]">
-                                Edit
-                            </summary>
-                            <form action={updateRow} className="mt-2 space-y-2">
-                                <input type="hidden" name="match_key" value={match.key} />
-                                <input type="hidden" name="match_value" value={match.value} />
-                                <textarea
-                                    name="payload"
-                                    defaultValue={rawJson}
-                                    rows={8}
-                                    className="w-full min-w-[320px] rounded-lg border border-white/10 bg-black/20 p-2 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
-                                />
-                                <button
-                                    type="submit"
-                                    className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
-                                >
-                                    Update
-                                </button>
-                            </form>
-                        </details>
+                        <Link
+                            href={`/admin/data/caption-examples?edit=${id}`}
+                            className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Edit
+                        </Link>
                         <form action={deleteRow}>
                             <input type="hidden" name="match_key" value={match.key} />
                             <input type="hidden" name="match_value" value={match.value} />
@@ -517,7 +565,87 @@ export default async function AdminResourcePage({
                     columns={['ID', 'Caption', 'Image Description', 'Explanation', 'Actions']}
                     rows={exampleRows}
                     emptyMessage={`No rows found in ${config.table}.`}
+                    rowClassName="transition-colors hover:bg-white/[0.04]"
                 />
+
+                {editId && editResult.data ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111318] px-4 py-8">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div className="space-y-2">
+                                <div>
+                                    <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                        Edit Caption Example
+                                    </h3>
+                                    <p className="mt-1 font-mono text-xs text-[#8A8F98]">ID: {editId}</p>
+                                </div>
+                            </div>
+
+                            <form action={saveCaptionExample} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">
+                                        Image Description
+                                    </span>
+                                    <textarea
+                                        name="image_description"
+                                        defaultValue={editImageDescription}
+                                        rows={5}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Caption</span>
+                                    <textarea
+                                        name="caption"
+                                        defaultValue={editCaption}
+                                        rows={4}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">
+                                        Explanation
+                                    </span>
+                                    <textarea
+                                        name="explanation"
+                                        defaultValue={editExplanation}
+                                        rows={6}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Priority</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        name="priority"
+                                        defaultValue={editPriority}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/caption-examples"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        Save changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         );
     }

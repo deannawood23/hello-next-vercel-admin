@@ -4,9 +4,15 @@ type DataTableProps = {
     columns: string[];
     rows: ReactNode[][];
     emptyMessage?: string;
+    rowClassName?: string;
 };
 
-export function DataTable({ columns, rows, emptyMessage = 'No rows found.' }: DataTableProps) {
+export function DataTable({
+    columns,
+    rows,
+    emptyMessage = 'No rows found.',
+    rowClassName = '',
+}: DataTableProps) {
     return (
         <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
             <table className="min-w-full text-left text-sm">
@@ -28,7 +34,10 @@ export function DataTable({ columns, rows, emptyMessage = 'No rows found.' }: Da
                         </tr>
                     ) : (
                         rows.map((cells, index) => (
-                            <tr key={`row-${index}`} className="border-b border-white/5 last:border-b-0">
+                            <tr
+                                key={`row-${index}`}
+                                className={`border-b border-white/5 last:border-b-0 ${rowClassName}`.trim()}
+                            >
                                 {cells.map((cell, cellIndex) => (
                                     <td key={`cell-${index}-${cellIndex}`} className="px-4 py-3 align-top text-[#D4D8DF]">
                                         {cell}
