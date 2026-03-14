@@ -12,6 +12,32 @@ type RelatedLookup = {
     provider_model_id?: string | null;
 } | null;
 
+type RelatedLookupRow = {
+    id: number | string;
+    name?: string | null;
+    slug?: string | null;
+    description?: string | null;
+    provider_model_id?: string | null;
+};
+
+type LlmModelResponseQueryRow = {
+    id: string;
+    created_datetime_utc: string | null;
+    llm_model_response: string | null;
+    processing_time_seconds: number | null;
+    llm_model_id: number | null;
+    profile_id: string | null;
+    caption_request_id: number | null;
+    llm_system_prompt: string | null;
+    llm_user_prompt: string | null;
+    llm_temperature: number | string | null;
+    humor_flavor_id: number | null;
+    llm_prompt_chain_id: number | null;
+    humor_flavor_step_id: number | null;
+    llm_models: RelatedLookupRow[] | null;
+    humor_flavors: RelatedLookupRow[] | null;
+};
+
 type LlmModelResponseRow = {
     id: string;
     created_datetime_utc: string | null;
@@ -29,6 +55,22 @@ type LlmModelResponseRow = {
     llm_models: RelatedLookup;
     humor_flavors: RelatedLookup;
 };
+
+function normalizeRelatedLookup(value: RelatedLookupRow[] | null | undefined): RelatedLookup {
+    if (!Array.isArray(value) || value.length === 0) {
+        return null;
+    }
+
+    return value[0] ?? null;
+}
+
+function normalizeResponseRow(row: LlmModelResponseQueryRow): LlmModelResponseRow {
+    return {
+        ...row,
+        llm_models: normalizeRelatedLookup(row.llm_models),
+        humor_flavors: normalizeRelatedLookup(row.humor_flavors),
+    };
+}
 
 function formatProcessing(seconds: number | null) {
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
@@ -133,7 +175,9 @@ export default async function CaptionRequestDetailPage({
     ]);
 
     const image = asRecord(imageResult.data);
-    const responses = (responsesResult.data ?? []) as LlmModelResponseRow[];
+    const responses = ((responsesResult.data ?? []) as LlmModelResponseQueryRow[]).map(
+        normalizeResponseRow
+    );
     const responseProfileIds = Array.from(
         new Set(
             responses

@@ -410,6 +410,118 @@ export default async function AdminResourcePage({
         );
     }
 
+    if (resource === 'caption-examples') {
+        const exampleRows = data.map((row) => {
+            const rawId = row.id;
+            const id =
+                typeof rawId === 'number'
+                    ? String(rawId)
+                    : typeof rawId === 'string' && rawId.trim().length > 0
+                    ? rawId
+                    : 'N/A';
+            const caption = pickString(row, ['caption', 'content', 'text'], 'N/A');
+            const imageDescription = pickString(
+                row,
+                ['image_description', 'image_notes', 'description'],
+                'N/A'
+            );
+            const explanation = pickString(
+                row,
+                ['explanation', 'reasoning', 'notes', 'additional_context'],
+                'N/A'
+            );
+            const match = getMatchForRow(row);
+            const rawJson = JSON.stringify(row, null, 2);
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
+                    {id}
+                </span>,
+                <span
+                    key={`caption-${id}`}
+                    className="block min-w-[260px] max-w-[440px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {caption}
+                </span>,
+                <span
+                    key={`image-description-${id}`}
+                    className="block min-w-[260px] max-w-[440px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {imageDescription}
+                </span>,
+                <span
+                    key={`explanation-${id}`}
+                    className="block min-w-[260px] max-w-[440px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {explanation}
+                </span>,
+                match ? (
+                    <div className="space-y-2" key={`actions-${id}`}>
+                        <details>
+                            <summary className="cursor-pointer text-xs text-[#B7C5FF]">
+                                Edit
+                            </summary>
+                            <form action={updateRow} className="mt-2 space-y-2">
+                                <input type="hidden" name="match_key" value={match.key} />
+                                <input type="hidden" name="match_value" value={match.value} />
+                                <textarea
+                                    name="payload"
+                                    defaultValue={rawJson}
+                                    rows={8}
+                                    className="w-full min-w-[320px] rounded-lg border border-white/10 bg-black/20 p-2 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                />
+                                <button
+                                    type="submit"
+                                    className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                >
+                                    Update
+                                </button>
+                            </form>
+                        </details>
+                        <form action={deleteRow}>
+                            <input type="hidden" name="match_key" value={match.key} />
+                            <input type="hidden" name="match_value" value={match.value} />
+                            <button
+                                type="submit"
+                                className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                            >
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                ) : (
+                    <span className="text-xs text-[#8A8F98]" key={`actions-${id}`}>
+                        No stable key for updates.
+                    </span>
+                ),
+            ];
+        });
+
+        return (
+            <div className="space-y-4">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">
+                        Curated examples used for prompts and quality checks
+                    </p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DataTable
+                    columns={['ID', 'Caption', 'Image Description', 'Explanation', 'Actions']}
+                    rows={exampleRows}
+                    emptyMessage={`No rows found in ${config.table}.`}
+                />
+            </div>
+        );
+    }
+
     const allKeys = Array.from(
         new Set(data.flatMap((row) => Object.keys(row)))
     ).filter((key) => key !== 'embedding');
