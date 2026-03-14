@@ -111,22 +111,9 @@ const navItems: NavItem[] = [
         ),
     },
     {
-        href: '/admin/data/humor-flavor-steps',
-        label: 'Humor Flavor Steps',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
-                <circle cx="6" cy="6" r="1.5" />
-                <circle cx="6" cy="12" r="1.5" />
-                <circle cx="6" cy="18" r="1.5" />
-                <path d="M10 6h8" />
-                <path d="M10 12h8" />
-                <path d="M10 18h8" />
-            </svg>
-        ),
-    },
-    {
         href: '/admin/data/humor-mix',
         label: 'Humor Mix',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <path d="M4 12h16" />

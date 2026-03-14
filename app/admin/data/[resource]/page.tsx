@@ -23,16 +23,10 @@ const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
         description: 'Organize flavor definitions and step sequences.',
         mode: 'read',
     },
-    'humor-flavor-steps': {
-        table: 'humor_flavor_steps',
-        title: 'Humor Flavor Steps',
-        description: 'Read humor flavor step records.',
-        mode: 'read',
-    },
     'humor-mix': {
-        table: 'humor_mix',
+        table: 'humor_flavor_mix',
         title: 'Humor Mix',
-        description: 'Read and update humor mix records.',
+        description: 'Manage the humor flavors used in captions generation.',
         mode: 'read_update',
     },
     terms: {
@@ -206,7 +200,7 @@ export default async function AdminResourcePage({
     searchParams,
 }: {
     params: Promise<{ resource: string }>;
-    searchParams?: Promise<{ edit?: string; create?: string }>;
+    searchParams?: Promise<{ edit?: string; create?: string; q?: string }>;
 }) {
     const { resource } = await params;
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -300,6 +294,71 @@ export default async function AdminResourcePage({
         revalidatePath('/admin/data/caption-examples');
         revalidatePath('/admin');
         redirect('/admin/data/caption-examples');
+    }
+
+    async function addHumorFlavorToMix(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-mix') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const humorFlavorId = Number(String(formData.get('humor_flavor_id') ?? ''));
+        const captionCount = Number(String(formData.get('caption_count') ?? ''));
+        if (Number.isNaN(humorFlavorId) || Number.isNaN(captionCount)) {
+            return;
+        }
+
+        await supabase.from('humor_flavor_mix').insert({
+            humor_flavor_id: humorFlavorId,
+            caption_count: captionCount,
+        });
+
+        revalidatePath('/admin/data/humor-mix');
+        revalidatePath('/admin');
+    }
+
+    async function updateHumorFlavorMix(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-mix') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const mixId = Number(String(formData.get('id') ?? ''));
+        const captionCount = Number(String(formData.get('caption_count') ?? ''));
+        if (Number.isNaN(mixId) || Number.isNaN(captionCount)) {
+            return;
+        }
+
+        await supabase
+            .from('humor_flavor_mix')
+            .update({ caption_count: captionCount })
+            .eq('id', mixId);
+
+        revalidatePath('/admin/data/humor-mix');
+        revalidatePath('/admin');
+    }
+
+    async function removeHumorFlavorFromMix(formData: FormData) {
+        'use server';
+
+        if (resource !== 'humor-mix') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const mixId = Number(String(formData.get('id') ?? ''));
+        if (Number.isNaN(mixId)) {
+            return;
+        }
+
+        await supabase.from('humor_flavor_mix').delete().eq('id', mixId);
+
+        revalidatePath('/admin/data/humor-mix');
+        revalidatePath('/admin');
     }
 
     async function saveHumorFlavor(formData: FormData) {
@@ -716,6 +775,182 @@ export default async function AdminResourcePage({
                         </div>
                     </div>
                 ) : null}
+            </div>
+        );
+    }
+
+    if (resource === 'humor-mix') {
+        const query = String(resolvedSearchParams?.q ?? '').trim().toLowerCase();
+        const [mixResult, flavorsResult] = await Promise.all([
+            supabase.from('humor_flavor_mix').select('*').order('created_datetime_utc', { ascending: false }),
+            supabase.from('humor_flavors').select('*').order('slug', { ascending: true }),
+        ]);
+
+        const mixRowsData = (mixResult.data ?? []).map((row) => asRecord(row));
+        const flavorRowsData = (flavorsResult.data ?? []).map((row) => asRecord(row));
+        const flavorById = new Map<string, Record<string, unknown>>();
+        for (const flavor of flavorRowsData) {
+            const flavorId = String(flavor.id ?? '');
+            if (flavorId) {
+                flavorById.set(flavorId, flavor);
+            }
+        }
+
+        const currentMixRows = mixRowsData.map((row) => {
+            const mixId = String(row.id ?? 'N/A');
+            const humorFlavorId = String(row.humor_flavor_id ?? '');
+            const captionCount =
+                typeof row.caption_count === 'number'
+                    ? row.caption_count
+                    : Number(String(row.caption_count ?? '0')) || 0;
+            const createdAt = formatDate(
+                pickDateValue(row, ['created_datetime_utc', 'created_at'])
+            );
+            const flavor = flavorById.get(humorFlavorId) ?? {};
+            const flavorLabel = pickString(asRecord(flavor), ['slug', 'description'], 'Unknown');
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`mix-id-${mixId}`}>
+                    {mixId}
+                </span>,
+                <span key={`mix-flavor-${mixId}`} className="text-[#D4D8DF]">
+                    {flavorLabel}
+                </span>,
+                <span key={`mix-count-${mixId}`}>{captionCount}</span>,
+                <span key={`mix-created-${mixId}`}>{createdAt}</span>,
+                <div className="flex flex-wrap items-center gap-2" key={`mix-actions-${mixId}`}>
+                    <form action={updateHumorFlavorMix} className="flex items-center gap-2">
+                        <input type="hidden" name="id" value={mixId} />
+                        <input
+                            type="number"
+                            name="caption_count"
+                            defaultValue={captionCount}
+                            className="w-24 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                        />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Save
+                        </button>
+                    </form>
+                    <form action={removeHumorFlavorFromMix}>
+                        <input type="hidden" name="id" value={mixId} />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                        >
+                            Remove
+                        </button>
+                    </form>
+                </div>,
+            ];
+        });
+
+        const filteredFlavorRows = flavorRowsData.filter((flavor) => {
+            if (!query) {
+                return true;
+            }
+
+            const slug = pickString(flavor, ['slug'], '').toLowerCase();
+            const description = pickString(flavor, ['description'], '').toLowerCase();
+            const themes = Array.isArray(flavor.themes)
+                ? flavor.themes.map((value) => String(value).toLowerCase()).join(' ')
+                : pickString(flavor, ['themes'], '').toLowerCase();
+
+            return slug.includes(query) || description.includes(query) || themes.includes(query);
+        });
+
+        const addFlavorRows = filteredFlavorRows.map((flavor) => {
+            const flavorId = String(flavor.id ?? 'N/A');
+            const slug = pickString(flavor, ['slug'], 'Unknown');
+            const description = pickString(flavor, ['description'], 'N/A');
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`flavor-id-${flavorId}`}>
+                    {flavorId}
+                </span>,
+                <span key={`flavor-slug-${flavorId}`} className="font-mono text-xs text-[#D4D8DF]">
+                    {slug}
+                </span>,
+                <span
+                    key={`flavor-description-${flavorId}`}
+                    className="block min-w-[260px] max-w-[420px] whitespace-pre-wrap text-[#D4D8DF]"
+                >
+                    {description}
+                </span>,
+                <form action={addHumorFlavorToMix} className="flex items-center gap-2" key={`flavor-actions-${flavorId}`}>
+                    <input type="hidden" name="humor_flavor_id" value={flavorId} />
+                    <input
+                        type="number"
+                        name="caption_count"
+                        min="1"
+                        defaultValue={1}
+                        className="w-24 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                    />
+                    <button
+                        type="submit"
+                        className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Add to Mix
+                    </button>
+                </form>,
+            ];
+        });
+
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">{config.description}</p>
+                </div>
+
+                <section className="space-y-4">
+                    <div>
+                        <h3 className="text-lg font-semibold text-[#EDEDEF]">Current Mix Flavors</h3>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">
+                            View and manage all humor flavors in the mix.
+                        </p>
+                    </div>
+                    <DataTable
+                        columns={['ID', 'Humor Flavor', 'Caption Count', 'Created', 'Actions']}
+                        rows={currentMixRows}
+                        emptyMessage="No humor flavors in the mix yet."
+                    />
+                </section>
+
+                <section className="space-y-4">
+                    <div>
+                        <h3 className="text-lg font-semibold text-[#EDEDEF]">Add to Mix</h3>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">
+                            Search flavors, set a caption count, and add them to the mix.
+                        </p>
+                    </div>
+
+                    <form method="get" className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                            type="text"
+                            name="q"
+                            defaultValue={String(resolvedSearchParams?.q ?? '')}
+                            placeholder="Search flavors"
+                            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                        />
+                        <button
+                            type="submit"
+                            className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Search
+                        </button>
+                    </form>
+
+                    <DataTable
+                        columns={['ID', 'Humor Flavor', 'Description', 'Actions']}
+                        rows={addFlavorRows}
+                        emptyMessage="No humor flavors match this search."
+                    />
+                </section>
             </div>
         );
     }
