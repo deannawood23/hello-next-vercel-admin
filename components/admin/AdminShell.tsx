@@ -123,17 +123,6 @@ const navItems: NavItem[] = [
         ),
     },
     {
-        href: '/admin/data/terms',
-        label: 'Terms',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
-                <path d="M4 6h16" />
-                <path d="M4 12h11" />
-                <path d="M4 18h8" />
-            </svg>
-        ),
-    },
-    {
         href: '/admin/data/llm-models',
         label: 'LLM Models',
         icon: (
@@ -178,6 +167,17 @@ const navItems: NavItem[] = [
         ),
     },
     {
+        href: '/admin/data/terms',
+        label: 'Terms',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M4 6h16" />
+                <path d="M4 12h11" />
+                <path d="M4 18h8" />
+            </svg>
+        ),
+    },
+    {
         href: '/admin/data/allowed-signup-domains',
         label: 'Allowed Domains',
         icon: (
@@ -192,6 +192,7 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/whitelisted-email-addresses',
         label: 'Whitelisted Emails',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <rect x="3" y="6" width="18" height="12" rx="2" />

@@ -78,8 +78,8 @@ const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
         mode: 'crud',
     },
     'whitelisted-email-addresses': {
-        table: 'whitelisted_email_addresses',
-        title: 'Whitelisted Email Addresses',
+        table: 'whitelist_email_addresses',
+        title: 'E-Mail Addresses',
         description:
             'Create, read, update, and delete whitelisted e-mail addresses.',
         mode: 'crud',
@@ -482,6 +482,131 @@ export default async function AdminResourcePage({
         await supabase.from('llm_providers').delete().eq('id', parseScalar(providerId));
 
         revalidatePath('/admin/data/llm-providers');
+        revalidatePath('/admin');
+    }
+
+    async function addAllowedDomain(formData: FormData) {
+        'use server';
+
+        if (resource !== 'allowed-signup-domains') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const domain = String(formData.get('domain') ?? '').trim().toLowerCase();
+        if (!domain) {
+            return;
+        }
+
+        await supabase.from('allowed_signup_domains').insert({ apex_domain: domain });
+
+        revalidatePath('/admin/data/allowed-signup-domains');
+        revalidatePath('/admin');
+    }
+
+    async function saveAllowedDomain(formData: FormData) {
+        'use server';
+
+        if (resource !== 'allowed-signup-domains') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const id = String(formData.get('id') ?? '').trim();
+        const domain = String(formData.get('domain') ?? '').trim().toLowerCase();
+        if (!id || !domain) {
+            return;
+        }
+
+        await supabase
+            .from('allowed_signup_domains')
+            .update({ apex_domain: domain })
+            .eq('id', parseScalar(id));
+
+        revalidatePath('/admin/data/allowed-signup-domains');
+        revalidatePath('/admin');
+    }
+
+    async function deleteAllowedDomain(formData: FormData) {
+        'use server';
+
+        if (resource !== 'allowed-signup-domains') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const id = String(formData.get('id') ?? '').trim();
+        if (!id) {
+            return;
+        }
+
+        await supabase.from('allowed_signup_domains').delete().eq('id', parseScalar(id));
+
+        revalidatePath('/admin/data/allowed-signup-domains');
+        revalidatePath('/admin');
+    }
+
+    async function addWhitelistedEmail(formData: FormData) {
+        'use server';
+
+        if (resource !== 'whitelisted-email-addresses') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const emailAddress = String(formData.get('email_address') ?? '').trim().toLowerCase();
+        if (!emailAddress) {
+            return;
+        }
+
+        await supabase.from('whitelist_email_addresses').insert({ email_address: emailAddress });
+
+        revalidatePath('/admin/data/whitelisted-email-addresses');
+        revalidatePath('/admin');
+    }
+
+    async function saveWhitelistedEmail(formData: FormData) {
+        'use server';
+
+        if (resource !== 'whitelisted-email-addresses') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const id = String(formData.get('id') ?? '').trim();
+        const emailAddress = String(formData.get('email_address') ?? '').trim().toLowerCase();
+        if (!id || !emailAddress) {
+            return;
+        }
+
+        await supabase
+            .from('whitelist_email_addresses')
+            .update({
+                email_address: emailAddress,
+                modified_datetime_utc: new Date().toISOString(),
+            })
+            .eq('id', parseScalar(id));
+
+        revalidatePath('/admin/data/whitelisted-email-addresses');
+        revalidatePath('/admin');
+    }
+
+    async function deleteWhitelistedEmail(formData: FormData) {
+        'use server';
+
+        if (resource !== 'whitelisted-email-addresses') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const id = String(formData.get('id') ?? '').trim();
+        if (!id) {
+            return;
+        }
+
+        await supabase.from('whitelist_email_addresses').delete().eq('id', parseScalar(id));
+
+        revalidatePath('/admin/data/whitelisted-email-addresses');
         revalidatePath('/admin');
     }
 
@@ -2090,6 +2215,261 @@ export default async function AdminResourcePage({
                                         className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
                                     >
                                         {isCreating ? 'Create Provider' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    if (resource === 'allowed-signup-domains') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const editResult = editId
+            ? await supabase
+                  .from('allowed_signup_domains')
+                  .select('*')
+                  .eq('id', parseScalar(editId))
+                  .maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const domainCards = data.map((row) => {
+            const id = String(row.id ?? pickString(row, ['apex_domain'], ''));
+            const domain = pickString(row, ['apex_domain'], 'N/A');
+
+            return (
+                <div
+                    key={id || domain}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p className="break-words text-base font-semibold text-[#EDEDEF]">{domain}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Link
+                            href={`/admin/data/allowed-signup-domains?edit=${id}`}
+                            className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Edit
+                        </Link>
+                        <form action={deleteAllowedDomain}>
+                            <input type="hidden" name="id" value={id} />
+                            <button
+                                type="submit"
+                                className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                            >
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        });
+
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">
+                        Only users with emails from these domains can sign up
+                    </p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <form action={addAllowedDomain} className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                        type="text"
+                        name="domain"
+                        placeholder="Add a new domain"
+                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                    />
+                    <button
+                        type="submit"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Add
+                    </button>
+                </form>
+
+                <div className="space-y-3">
+                    {domainCards.length > 0 ? (
+                        domainCards
+                    ) : (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-[#A6ACB6]">
+                            No allowed domains found.
+                        </div>
+                    )}
+                </div>
+
+                {editId && editResult.data ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    Edit Domain
+                                </h3>
+                            </div>
+
+                            <form action={saveAllowedDomain} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Domain</span>
+                                    <input
+                                        type="text"
+                                        name="domain"
+                                        defaultValue={pickString(editRow, ['apex_domain'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/allowed-signup-domains"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    if (resource === 'whitelisted-email-addresses') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const editResult = editId
+            ? await supabase
+                  .from('whitelist_email_addresses')
+                  .select('*')
+                  .eq('id', parseScalar(editId))
+                  .maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const emailCards = data.map((row) => {
+            const id = String(row.id ?? pickString(row, ['email_address'], ''));
+            const emailAddress = pickString(row, ['email_address'], 'N/A');
+
+            return (
+                <div
+                    key={id || emailAddress}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <div className="space-y-1">
+                        <p className="text-sm text-[#A6ACB6]">ID {id}</p>
+                        <p className="break-words text-base font-semibold text-[#EDEDEF]">{emailAddress}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Link
+                            href={`/admin/data/whitelisted-email-addresses?edit=${id}`}
+                            className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Edit
+                        </Link>
+                        <form action={deleteWhitelistedEmail}>
+                            <input type="hidden" name="id" value={id} />
+                            <button
+                                type="submit"
+                                className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                            >
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        });
+
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        E-Mail Addresses
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">
+                        Users with these exact e-mail addresses can sign up
+                    </p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <form action={addWhitelistedEmail} className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                        type="text"
+                        name="email_address"
+                        placeholder="Add an e-mail address"
+                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                    />
+                    <button
+                        type="submit"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Add
+                    </button>
+                </form>
+
+                <div className="space-y-3">
+                    {emailCards.length > 0 ? (
+                        emailCards
+                    ) : (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-[#A6ACB6]">
+                            No whitelisted e-mail addresses found.
+                        </div>
+                    )}
+                </div>
+
+                {editId && editResult.data ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    Edit E-Mail Address
+                                </h3>
+                            </div>
+
+                            <form action={saveWhitelistedEmail} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">E-Mail Address</span>
+                                    <input
+                                        type="text"
+                                        name="email_address"
+                                        defaultValue={pickString(editRow, ['email_address'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/whitelisted-email-addresses"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        Save Changes
                                     </button>
                                 </div>
                             </form>
