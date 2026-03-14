@@ -79,6 +79,7 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/caption-requests',
         label: 'Caption Requests',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <path d="M4 6h16" />
@@ -90,6 +91,7 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/caption-examples',
         label: 'Caption Examples',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <path d="M4 5h10v14H4z" />
