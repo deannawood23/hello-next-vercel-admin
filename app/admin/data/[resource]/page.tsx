@@ -949,10 +949,6 @@ export default async function AdminResourcePage({
                     : 'N/A';
             const slug = pickString(row, ['slug'], 'N/A');
             const description = pickString(row, ['description'], 'N/A');
-            const themes = Array.isArray(row.themes)
-                ? row.themes.map((value) => String(value)).join(', ')
-                : pickString(row, ['themes'], 'N/A');
-
             return [
                 <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
                     {id}
@@ -966,13 +962,7 @@ export default async function AdminResourcePage({
                 >
                     {description}
                 </span>,
-                <span
-                    key={`themes-${id}`}
-                    className="block min-w-[220px] max-w-[360px] whitespace-pre-wrap text-[#D4D8DF]"
-                >
-                    {themes}
-                </span>,
-                <div className="flex flex-wrap gap-2" key={`actions-${id}`}>
+                <div className="flex min-w-[360px] flex-wrap gap-2" key={`actions-${id}`}>
                     <Link
                         href={`/admin/data/humor-flavors/${id}`}
                         className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
@@ -1022,10 +1012,21 @@ export default async function AdminResourcePage({
                 </div>
 
                 <DataTable
-                    columns={['ID', 'Slug', 'Description', 'Themes', 'Actions']}
+                    columns={['ID', 'Slug', 'Description', 'Actions']}
                     rows={flavorRows}
                     emptyMessage={`No rows found in ${config.table}.`}
-                    rowClassName="transition-colors hover:bg-white/[0.04]"
+                    rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
+                    rowHrefs={data.map((row) => {
+                        const rawId = row.id;
+                        const id =
+                            typeof rawId === 'number'
+                                ? String(rawId)
+                                : typeof rawId === 'string' && rawId.trim().length > 0
+                                ? rawId
+                                : '';
+                        return `/admin/data/humor-flavors/${id}`;
+                    })}
+                    nonLinkColumns={[3]}
                 />
 
                 {editId && editResult.data ? (

@@ -3,7 +3,7 @@ import { AdminImagesGrid } from '../../../components/admin/AdminImagesGrid';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
 import { normalizeImageRecord } from './_lib';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 9;
 
 type AdminImagesPageProps = {
     searchParams?: Promise<{

@@ -7,6 +7,7 @@ type DataTableProps = {
     emptyMessage?: string;
     rowClassName?: string;
     rowHrefs?: string[];
+    nonLinkColumns?: number[];
 };
 
 export function DataTable({
@@ -15,6 +16,7 @@ export function DataTable({
     emptyMessage = 'No rows found.',
     rowClassName = '',
     rowHrefs,
+    nonLinkColumns = [],
 }: DataTableProps) {
     return (
         <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
@@ -43,7 +45,7 @@ export function DataTable({
                             >
                                 {cells.map((cell, cellIndex) => (
                                     <td key={`cell-${index}-${cellIndex}`} className="px-4 py-3 align-top text-[#D4D8DF]">
-                                        {rowHrefs?.[index] ? (
+                                        {rowHrefs?.[index] && !nonLinkColumns.includes(cellIndex) ? (
                                             <Link
                                                 href={rowHrefs[index]}
                                                 className="block -mx-4 -my-3 px-4 py-3 text-inherit no-underline"
