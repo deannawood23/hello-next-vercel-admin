@@ -379,6 +379,112 @@ export default async function AdminResourcePage({
         revalidatePath('/admin');
     }
 
+    async function saveLlmModel(formData: FormData) {
+        'use server';
+
+        if (resource !== 'llm-models') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const modelId = String(formData.get('id') ?? '').trim();
+        const mode = String(formData.get('mode') ?? '').trim();
+        if (mode !== 'create' && !modelId) {
+            return;
+        }
+
+        const name = String(formData.get('name') ?? '').trim();
+        const llmProviderIdRaw = String(formData.get('llm_provider_id') ?? '').trim();
+        const providerModelId = String(formData.get('provider_model_id') ?? '').trim();
+        const isTemperatureSupportedRaw = String(formData.get('is_temperature_supported') ?? '').trim();
+
+        const payload = {
+            name,
+            llm_provider_id:
+                llmProviderIdRaw.length > 0 && !Number.isNaN(Number(llmProviderIdRaw))
+                    ? Number(llmProviderIdRaw)
+                    : null,
+            provider_model_id: providerModelId,
+            is_temperature_supported: isTemperatureSupportedRaw === 'true',
+        };
+
+        if (mode === 'create') {
+            await supabase.from('llm_models').insert(payload);
+        } else {
+            await supabase.from('llm_models').update(payload).eq('id', parseScalar(modelId));
+        }
+
+        revalidatePath('/admin/data/llm-models');
+        revalidatePath('/admin');
+        redirect('/admin/data/llm-models');
+    }
+
+    async function deleteLlmModel(formData: FormData) {
+        'use server';
+
+        if (resource !== 'llm-models') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const modelId = String(formData.get('id') ?? '').trim();
+        if (!modelId) {
+            return;
+        }
+
+        await supabase.from('llm_models').delete().eq('id', parseScalar(modelId));
+
+        revalidatePath('/admin/data/llm-models');
+        revalidatePath('/admin');
+    }
+
+    async function saveLlmProvider(formData: FormData) {
+        'use server';
+
+        if (resource !== 'llm-providers') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const providerId = String(formData.get('id') ?? '').trim();
+        const mode = String(formData.get('mode') ?? '').trim();
+        if (mode !== 'create' && !providerId) {
+            return;
+        }
+
+        const name = String(formData.get('name') ?? '').trim();
+        const payload = { name };
+
+        if (mode === 'create') {
+            await supabase.from('llm_providers').insert(payload);
+        } else {
+            await supabase.from('llm_providers').update(payload).eq('id', parseScalar(providerId));
+        }
+
+        revalidatePath('/admin/data/llm-providers');
+        revalidatePath('/admin');
+        redirect('/admin/data/llm-providers');
+    }
+
+    async function deleteLlmProvider(formData: FormData) {
+        'use server';
+
+        if (resource !== 'llm-providers') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const providerId = String(formData.get('id') ?? '').trim();
+        if (!providerId) {
+            return;
+        }
+
+        await supabase.from('llm_providers').delete().eq('id', parseScalar(providerId));
+
+        revalidatePath('/admin/data/llm-providers');
+        revalidatePath('/admin');
+    }
+
     async function addHumorFlavorToMix(formData: FormData) {
         'use server';
 
@@ -1297,6 +1403,321 @@ export default async function AdminResourcePage({
                                         className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
                                     >
                                         {isCreating ? 'Create Term' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    if (resource === 'llm-models') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const isCreating = String(resolvedSearchParams?.create ?? '').trim() === '1';
+        const [editResult, providersResult] = await Promise.all([
+            editId
+                ? supabase.from('llm_models').select('*').eq('id', parseScalar(editId)).maybeSingle()
+                : Promise.resolve({ data: null, error: null }),
+            supabase.from('llm_providers').select('*').order('name', { ascending: true }),
+        ]);
+        const editRow = asRecord(editResult.data);
+        const showModal = isCreating || Boolean(editId && editResult.data);
+        const providerRows = (providersResult.data ?? []).map((row) => asRecord(row));
+
+        const modelRows = data.map((row) => {
+            const id = String(row.id ?? 'N/A');
+            const createdAt = pickString(row, ['created_datetime_utc', 'created_datetime_', 'created_at'], 'N/A');
+            const name = pickString(row, ['name'], 'N/A');
+            const llmProviderId =
+                typeof row.llm_provider_id === 'number'
+                    ? String(row.llm_provider_id)
+                    : pickString(row, ['llm_provider_id'], 'N/A');
+            const providerModelId = pickString(row, ['provider_model_id'], 'N/A');
+            const isTemperatureSupported =
+                typeof row.is_temperature_supported === 'boolean'
+                    ? String(row.is_temperature_supported)
+                    : pickString(row, ['is_temperature_supported'], 'N/A');
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
+                    {id}
+                </span>,
+                <span className="font-mono text-xs text-[#D4D8DF]" key={`created-${id}`}>
+                    {createdAt}
+                </span>,
+                <span key={`name-${id}`} className="text-[#D4D8DF]">
+                    {name}
+                </span>,
+                <span className="font-mono text-xs text-[#D4D8DF]" key={`provider-${id}`}>
+                    {llmProviderId}
+                </span>,
+                <span className="font-mono text-xs text-[#D4D8DF]" key={`provider-model-${id}`}>
+                    {providerModelId}
+                </span>,
+                <span key={`temp-supported-${id}`} className="text-[#D4D8DF]">
+                    {isTemperatureSupported}
+                </span>,
+                <div className="flex flex-wrap gap-2" key={`actions-${id}`}>
+                    <Link
+                        href={`/admin/data/llm-models?edit=${id}`}
+                        className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Edit
+                    </Link>
+                    <form action={deleteLlmModel}>
+                        <input type="hidden" name="id" value={id} />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                        >
+                            Delete
+                        </button>
+                    </form>
+                </div>,
+            ];
+        });
+
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {config.title}
+                        </h2>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">All registered models in the system.</p>
+                    </div>
+                    <Link
+                        href="/admin/data/llm-models?create=1"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Create Model
+                    </Link>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DataTable
+                    columns={[
+                        'ID',
+                        'CREATED DATETIME UTC',
+                        'NAME',
+                        'LLM PROVIDER ID',
+                        'PROVIDER MODEL ID',
+                        'IS TEMPERATURE SUPPORTED',
+                        'ACTIONS',
+                    ]}
+                    rows={modelRows}
+                    emptyMessage="No rows found in llm_models."
+                />
+
+                {showModal ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    {isCreating ? 'Create LLM Model' : 'Edit LLM Model'}
+                                </h3>
+                            </div>
+
+                            <form action={saveLlmModel} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+                                <input type="hidden" name="mode" value={isCreating ? 'create' : 'edit'} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Name</span>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        defaultValue={pickString(editRow, ['name'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">LLM Provider ID</span>
+                                    <select
+                                        name="llm_provider_id"
+                                        defaultValue={pickString(editRow, ['llm_provider_id'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    >
+                                        <option value="">Select provider</option>
+                                        {providerRows.map((provider) => {
+                                            const providerId = String(provider.id ?? '');
+                                            if (!providerId) {
+                                                return null;
+                                            }
+                                            const providerName = pickString(provider, ['name'], providerId);
+                                            return (
+                                                <option key={providerId} value={providerId}>
+                                                    {providerName}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Provider Model ID</span>
+                                    <input
+                                        type="text"
+                                        name="provider_model_id"
+                                        defaultValue={pickString(editRow, ['provider_model_id'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">
+                                        Is Temperature Supported
+                                    </span>
+                                    <select
+                                        name="is_temperature_supported"
+                                        defaultValue={
+                                            typeof editRow.is_temperature_supported === 'boolean'
+                                                ? String(editRow.is_temperature_supported)
+                                                : 'false'
+                                        }
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    >
+                                        <option value="true">True</option>
+                                        <option value="false">False</option>
+                                    </select>
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/llm-models"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        {isCreating ? 'Create Model' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    if (resource === 'llm-providers') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const isCreating = String(resolvedSearchParams?.create ?? '').trim() === '1';
+        const editResult = editId
+            ? await supabase.from('llm_providers').select('*').eq('id', parseScalar(editId)).maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const showModal = isCreating || Boolean(editId && editResult.data);
+
+        const providerRows = data.map((row) => {
+            const id = String(row.id ?? 'N/A');
+            const createdAt = pickString(row, ['created_datetime_utc', 'created_datetime_', 'created_at'], 'N/A');
+            const name = pickString(row, ['name'], 'N/A');
+
+            return [
+                <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
+                    {id}
+                </span>,
+                <span className="font-mono text-xs text-[#D4D8DF]" key={`created-${id}`}>
+                    {createdAt}
+                </span>,
+                <span key={`name-${id}`} className="text-[#D4D8DF]">
+                    {name}
+                </span>,
+                <div className="flex flex-wrap gap-2" key={`actions-${id}`}>
+                    <Link
+                        href={`/admin/data/llm-providers?edit=${id}`}
+                        className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Edit
+                    </Link>
+                    <form action={deleteLlmProvider}>
+                        <input type="hidden" name="id" value={id} />
+                        <button
+                            type="submit"
+                            className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                        >
+                            Delete
+                        </button>
+                    </form>
+                </div>,
+            ];
+        });
+
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {config.title}
+                        </h2>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">All registered providers in the system.</p>
+                    </div>
+                    <Link
+                        href="/admin/data/llm-providers?create=1"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Create Provider
+                    </Link>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DataTable
+                    columns={['ID', 'CREATED DATETIME UTC', 'NAME', 'ACTIONS']}
+                    rows={providerRows}
+                    emptyMessage="No rows found in llm_providers."
+                />
+
+                {showModal ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    {isCreating ? 'Create LLM Provider' : 'Edit LLM Provider'}
+                                </h3>
+                            </div>
+
+                            <form action={saveLlmProvider} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+                                <input type="hidden" name="mode" value={isCreating ? 'create' : 'edit'} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Name</span>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        defaultValue={pickString(editRow, ['name'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/llm-providers"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        {isCreating ? 'Create Provider' : 'Save Changes'}
                                     </button>
                                 </div>
                             </form>

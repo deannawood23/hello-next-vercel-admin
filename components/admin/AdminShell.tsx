@@ -146,6 +146,7 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/llm-providers',
         label: 'LLM Providers',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <circle cx="12" cy="7" r="3" />
@@ -156,6 +157,7 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/llm-prompt-chains',
         label: 'LLM Prompt Chains',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <rect x="3" y="6" width="6" height="6" rx="1.2" />
@@ -166,8 +168,9 @@ const navItems: NavItem[] = [
         ),
     },
     {
-        href: '/admin/data/llm-responses',
+        href: '/admin/data/llm-model-responses',
         label: 'LLM Responses',
+        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <path d="M4 5h16v10H7l-3 3V5z" />
