@@ -169,6 +169,27 @@ function formatValue(value: unknown): ReactNode {
     );
 }
 
+function formatEasternTimestamp(date: Date | null): string {
+    if (!date) {
+        return 'Unknown';
+    }
+
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'America/New_York',
+        timeZoneName: 'short',
+    });
+
+    const parts = formatter.formatToParts(date);
+    const values = new Map(parts.map((part) => [part.type, part.value]));
+    return `${values.get('month')} ${values.get('day')}, ${values.get('year')} at ${values.get('hour')}:${values.get('minute')} ${values.get('dayPeriod')} ${values.get('timeZoneName')}`;
+}
+
 async function fetchTableRows(
     supabase: Awaited<ReturnType<typeof requireSuperadmin>>['supabase'],
     table: string
@@ -200,7 +221,7 @@ export default async function AdminResourcePage({
     searchParams,
 }: {
     params: Promise<{ resource: string }>;
-    searchParams?: Promise<{ edit?: string; create?: string; q?: string }>;
+    searchParams?: Promise<{ edit?: string; create?: string; q?: string; page?: string }>;
 }) {
     const { resource } = await params;
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -294,6 +315,68 @@ export default async function AdminResourcePage({
         revalidatePath('/admin/data/caption-examples');
         revalidatePath('/admin');
         redirect('/admin/data/caption-examples');
+    }
+
+    async function saveTerm(formData: FormData) {
+        'use server';
+
+        if (resource !== 'terms') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const termId = String(formData.get('id') ?? '').trim();
+        const mode = String(formData.get('mode') ?? '').trim();
+        if (mode !== 'create' && !termId) {
+            return;
+        }
+
+        const term = String(formData.get('term') ?? '').trim();
+        const termType = String(formData.get('term_type') ?? '').trim();
+        const priorityRaw = String(formData.get('priority') ?? '').trim();
+        const definition = String(formData.get('definition') ?? '').trim();
+        const example = String(formData.get('example') ?? '').trim();
+        const priority =
+            priorityRaw.length > 0 && !Number.isNaN(Number(priorityRaw))
+                ? Number(priorityRaw)
+                : 0;
+
+        const payload = {
+            term,
+            term_type: termType,
+            priority,
+            definition,
+            example,
+        };
+
+        if (mode === 'create') {
+            await supabase.from('terms').insert(payload);
+        } else {
+            await supabase.from('terms').update(payload).eq('id', parseScalar(termId));
+        }
+
+        revalidatePath('/admin/data/terms');
+        revalidatePath('/admin');
+        redirect('/admin/data/terms');
+    }
+
+    async function deleteTerm(formData: FormData) {
+        'use server';
+
+        if (resource !== 'terms') {
+            return;
+        }
+
+        const { supabase } = await requireSuperadmin();
+        const termId = String(formData.get('id') ?? '').trim();
+        if (!termId) {
+            return;
+        }
+
+        await supabase.from('terms').delete().eq('id', parseScalar(termId));
+
+        revalidatePath('/admin/data/terms');
+        revalidatePath('/admin');
     }
 
     async function addHumorFlavorToMix(formData: FormData) {
@@ -951,6 +1034,275 @@ export default async function AdminResourcePage({
                         emptyMessage="No humor flavors match this search."
                     />
                 </section>
+            </div>
+        );
+    }
+
+    if (resource === 'terms') {
+        const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const isCreating = String(resolvedSearchParams?.create ?? '').trim() === '1';
+        const query = String(resolvedSearchParams?.q ?? '').trim();
+        const normalizedQuery = query.toLowerCase();
+        const requestedPage = Number.parseInt(String(resolvedSearchParams?.page ?? '1'), 10);
+        const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+        const pageSize = 10;
+        const [primaryTermsResult, fallbackTermsResult] = await Promise.all([
+            supabase.from('terms').select('*').order('term', { ascending: true }),
+            supabase.from('terms').select('*').order('name', { ascending: true }),
+        ]);
+        const termRows = (
+            primaryTermsResult.error ? fallbackTermsResult.data ?? [] : primaryTermsResult.data ?? []
+        ).map((row) => asRecord(row));
+        const filteredTerms = termRows.filter((row) => {
+            if (!normalizedQuery) {
+                return true;
+            }
+
+            const term = pickString(row, ['term', 'name'], '').toLowerCase();
+            return term.includes(normalizedQuery);
+        });
+        const totalTerms = filteredTerms.length;
+        const totalPages = Math.max(1, Math.ceil(totalTerms / pageSize));
+        const safePage = Math.min(currentPage, totalPages);
+        const startIndex = (safePage - 1) * pageSize;
+        const pagedTerms = filteredTerms.slice(startIndex, startIndex + pageSize);
+        const editResult = editId
+            ? await supabase.from('terms').select('*').eq('id', parseScalar(editId)).maybeSingle()
+            : { data: null, error: null };
+        const editRow = asRecord(editResult.data);
+        const showModal = isCreating || Boolean(editId && editResult.data);
+        const termTypeOptions = ['Noun', 'Verb', 'Adjective', 'Adverb', 'Phrase', 'Other'];
+
+        const termCards = pagedTerms.map((row) => {
+            const id = String(row.id ?? 'N/A');
+            const term = pickString(row, ['term', 'name'], 'Untitled Term');
+            const termType = pickString(row, ['term_type', 'type', 'part_of_speech'], 'Unknown');
+            const priority =
+                typeof row.priority === 'number'
+                    ? row.priority
+                    : Number(String(row.priority ?? '0')) || 0;
+            const definition = pickString(row, ['definition', 'description'], 'No definition.');
+            const example = pickString(row, ['example', 'usage_example'], '');
+            const created = formatEasternTimestamp(
+                pickDateValue(row, ['created_datetime_utc', 'created_datetime_', 'created_at'])
+            );
+            const updatedDate = pickDateValue(
+                row,
+                ['updated_datetime_utc', 'updated_datetime_', 'updated_at']
+            );
+            const updated = updatedDate ? formatEasternTimestamp(updatedDate) : '';
+
+            return (
+                <article key={id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <div className="space-y-2">
+                        <h3 className="font-[var(--font-playfair)] text-2xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {term}
+                        </h3>
+                        <p className="text-sm font-semibold text-[#D4D8DF]">{termType}</p>
+                        <p className="text-sm text-[#A6ACB6]">Priority: {priority}</p>
+                        <p className="text-sm text-[#D4D8DF]">{definition}</p>
+                        {example ? (
+                            <p className="text-sm text-[#C5CBD5]">
+                                <span className="font-semibold text-[#D4D8DF]">Example:</span> {example}
+                            </p>
+                        ) : null}
+                        <p className="text-sm text-[#A6ACB6]">Created {created}</p>
+                        {updated ? <p className="text-sm text-[#A6ACB6]">Updated {updated}</p> : null}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <Link
+                            href={`/admin/data/terms?edit=${id}`}
+                            className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Edit
+                        </Link>
+                        <form action={deleteTerm}>
+                            <input type="hidden" name="id" value={id} />
+                            <button
+                                type="submit"
+                                className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                            >
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            );
+        });
+
+        return (
+            <div className="space-y-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {config.title}
+                        </h2>
+                        <p className="mt-1 text-sm text-[#A6ACB6]">
+                            Manage glossary terms and their definitions
+                        </p>
+                        <p className="mt-3 text-sm font-semibold text-[#D4D8DF]">Terms ({totalTerms})</p>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:items-end">
+                        <form method="get" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                            <input
+                                type="text"
+                                name="q"
+                                defaultValue={query}
+                                placeholder="Search terms"
+                                className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70 sm:w-64"
+                            />
+                            <button
+                                type="submit"
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Search
+                            </button>
+                        </form>
+                        <Link
+                            href={query ? `/admin/data/terms?create=1&q=${encodeURIComponent(query)}` : '/admin/data/terms?create=1'}
+                            className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Create New Term
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="space-y-4">{termCards}</div>
+
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-[#A6ACB6] sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                        Showing {totalTerms === 0 ? 0 : startIndex + 1} - {Math.min(startIndex + pageSize, totalTerms)} of {totalTerms} terms
+                    </span>
+                    <div className="flex items-center gap-3">
+                        {safePage > 1 ? (
+                            <Link
+                                href={
+                                    query
+                                        ? `/admin/data/terms?q=${encodeURIComponent(query)}&page=${safePage - 1}`
+                                        : `/admin/data/terms?page=${safePage - 1}`
+                                }
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Previous
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Previous
+                            </span>
+                        )}
+                        <span>
+                            Page {safePage} of {totalPages}
+                        </span>
+                        {safePage < totalPages ? (
+                            <Link
+                                href={
+                                    query
+                                        ? `/admin/data/terms?q=${encodeURIComponent(query)}&page=${safePage + 1}`
+                                        : `/admin/data/terms?page=${safePage + 1}`
+                                }
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Next
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Next
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {showModal ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+                        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
+                            <div>
+                                <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                                    {isCreating ? 'Create New Term' : 'Edit Term'}
+                                </h3>
+                            </div>
+
+                            <form action={saveTerm} className="mt-6 space-y-5">
+                                <input type="hidden" name="id" value={editId} />
+                                <input type="hidden" name="mode" value={isCreating ? 'create' : 'edit'} />
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Term</span>
+                                    <input
+                                        type="text"
+                                        name="term"
+                                        defaultValue={pickString(editRow, ['term', 'name'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Term Type</span>
+                                    <select
+                                        name="term_type"
+                                        defaultValue={pickString(editRow, ['term_type', 'type', 'part_of_speech'], '')}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                                    >
+                                        <option value="">Select type</option>
+                                        {termTypeOptions.map((option) => (
+                                            <option key={option} value={option}>
+                                                {option}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Priority</span>
+                                    <input
+                                        type="number"
+                                        name="priority"
+                                        defaultValue={
+                                            typeof editRow.priority === 'number'
+                                                ? editRow.priority
+                                                : Number(String(editRow.priority ?? '0')) || 0
+                                        }
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Definition</span>
+                                    <textarea
+                                        name="definition"
+                                        defaultValue={pickString(editRow, ['definition', 'description'], '')}
+                                        rows={5}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <label className="block space-y-2">
+                                    <span className="text-sm font-semibold text-[#EDEDEF]">Example</span>
+                                    <textarea
+                                        name="example"
+                                        defaultValue={pickString(editRow, ['example', 'usage_example'], '')}
+                                        rows={4}
+                                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Link
+                                        href="/admin/data/terms"
+                                        className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                                    >
+                                        Cancel
+                                    </Link>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                    >
+                                        {isCreating ? 'Create Term' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         );
     }
