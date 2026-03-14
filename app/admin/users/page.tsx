@@ -1,7 +1,10 @@
+import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { DataTable } from '../../../components/admin/DataTable';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
 import { asRecord, formatDate, pickBool, pickDateValue, pickString } from '../_lib';
+
+const PAGE_SIZE = 50;
 
 async function toggleSuperadmin(formData: FormData) {
     'use server';
@@ -27,34 +30,70 @@ async function toggleSuperadmin(formData: FormData) {
 export default async function AdminUsersPage({
     searchParams,
 }: {
-    searchParams?: Promise<{ q?: string }>;
+    searchParams?: Promise<{ q?: string; page?: string }>;
 }) {
     const { supabase } = await requireSuperadmin();
     const params = searchParams ? await searchParams : undefined;
-    const query = String(params?.q ?? '').trim().toLowerCase();
+    const query = String(params?.q ?? '').trim();
+    const normalizedQuery = query.toLowerCase();
+    const requestedPage = Number.parseInt(String(params?.page ?? '1'), 10);
+    const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const searchFilter = query
+        ? `email.ilike.%${query}%,id.ilike.%${query}%`
+        : null;
 
-    const primary = await supabase
+    let countQuery = supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true });
+
+    if (searchFilter) {
+        countQuery = countQuery.or(searchFilter);
+    }
+
+    const countResult = await countQuery;
+    const totalUsers = countResult.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const safeRangeFrom = (safePage - 1) * PAGE_SIZE;
+    const safeRangeTo = safeRangeFrom + PAGE_SIZE - 1;
+
+    let primaryQuery = supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(200);
-    const fallback = primary.error
-        ? await supabase
-              .from('profiles')
-              .select('*')
-              .order('created_datetime_utc', { ascending: false })
-              .limit(200)
-        : null;
+        .range(safeRangeFrom, safeRangeTo);
+
+    if (searchFilter) {
+        primaryQuery = primaryQuery.or(searchFilter);
+    }
+
+    const primary = await primaryQuery;
+    let fallback = null;
+
+    if (primary.error) {
+        let fallbackQuery = supabase
+            .from('profiles')
+            .select('*')
+            .order('created_datetime_utc', { ascending: false })
+            .range(safeRangeFrom, safeRangeTo);
+
+        if (searchFilter) {
+            fallbackQuery = fallbackQuery.or(searchFilter);
+        }
+
+        fallback = await fallbackQuery;
+    }
+
     const data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
     const filteredData = data.filter((raw) => {
-        if (!query) {
+        if (!normalizedQuery) {
             return true;
         }
 
         const row = asRecord(raw);
         const id = pickString(row, ['id'], '').toLowerCase();
         const email = pickString(row, ['email'], '').toLowerCase();
-        return id.includes(query) || email.includes(query);
+        return id.includes(normalizedQuery) || email.includes(normalizedQuery);
     });
 
     const rows = filteredData.map((raw) => {
@@ -156,15 +195,49 @@ export default async function AdminUsersPage({
                         Search
                     </button>
                     {query ? (
-                        <a
+                        <Link
                             href="/admin/users"
                             className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:border-white/20"
                         >
                             Clear
-                        </a>
+                        </Link>
                     ) : null}
                 </div>
             </form>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-[#A6ACB6]">
+                <span>
+                    {totalUsers === 0
+                        ? 'Showing 0 users'
+                        : `Showing ${safeRangeFrom + 1} - ${Math.min(safeRangeTo + 1, totalUsers)} of ${totalUsers} users`}
+                </span>
+                <div className="flex items-center gap-2">
+                    <Link
+                        href={buildUsersPageHref(query, Math.max(1, safePage - 1))}
+                        aria-disabled={safePage <= 1}
+                        className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                            safePage <= 1
+                                ? 'pointer-events-none border-white/5 bg-black/10 text-[#6F7680]'
+                                : 'border-white/10 bg-black/20 text-[#D4D8DF] hover:border-white/20'
+                        }`}
+                    >
+                        Previous
+                    </Link>
+                    <span className="px-2 text-xs uppercase tracking-[0.14em] text-[#8A8F98]">
+                        Page {safePage} of {totalPages}
+                    </span>
+                    <Link
+                        href={buildUsersPageHref(query, Math.min(totalPages, safePage + 1))}
+                        aria-disabled={safePage >= totalPages}
+                        className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                            safePage >= totalPages
+                                ? 'pointer-events-none border-white/5 bg-black/10 text-[#6F7680]'
+                                : 'border-white/10 bg-black/20 text-[#D4D8DF] hover:border-white/20'
+                        }`}
+                    >
+                        Next
+                    </Link>
+                </div>
+            </div>
             <DataTable
                 columns={['Email', 'ID', 'Sign Up Date', 'Role', 'Toggle Super Admin']}
                 rows={rows}
@@ -172,4 +245,17 @@ export default async function AdminUsersPage({
             />
         </div>
     );
+}
+
+function buildUsersPageHref(query: string, page: number) {
+    const params = new URLSearchParams();
+    if (query) {
+        params.set('q', query);
+    }
+    if (page > 1) {
+        params.set('page', String(page));
+    }
+
+    const search = params.toString();
+    return search ? `/admin/users?${search}` : '/admin/users';
 }
