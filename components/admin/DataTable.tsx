@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 type DataTableProps = {
@@ -5,6 +6,7 @@ type DataTableProps = {
     rows: ReactNode[][];
     emptyMessage?: string;
     rowClassName?: string;
+    rowHrefs?: string[];
 };
 
 export function DataTable({
@@ -12,6 +14,7 @@ export function DataTable({
     rows,
     emptyMessage = 'No rows found.',
     rowClassName = '',
+    rowHrefs,
 }: DataTableProps) {
     return (
         <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
@@ -40,7 +43,16 @@ export function DataTable({
                             >
                                 {cells.map((cell, cellIndex) => (
                                     <td key={`cell-${index}-${cellIndex}`} className="px-4 py-3 align-top text-[#D4D8DF]">
-                                        {cell}
+                                        {rowHrefs?.[index] ? (
+                                            <Link
+                                                href={rowHrefs[index]}
+                                                className="block -mx-4 -my-3 px-4 py-3 text-inherit no-underline"
+                                            >
+                                                {cell}
+                                            </Link>
+                                        ) : (
+                                            cell
+                                        )}
                                     </td>
                                 ))}
                             </tr>

@@ -1501,6 +1501,10 @@ export default async function AdminResourcePage({
                     </span>,
                 ];
             });
+        const promptChainRowHrefs = (promptChainsResult.data ?? []).map((row) => {
+            const record = asRecord(row);
+            return `/admin/data/llm-prompt-chains/${String(record.id ?? '')}`;
+        });
 
         return (
             <div className="space-y-4">
@@ -1538,6 +1542,8 @@ export default async function AdminResourcePage({
                     columns={['ID', 'CREATED', 'CAPTION REQUEST']}
                     rows={promptChainRows}
                     emptyMessage="No prompt chains match this search."
+                    rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
+                    rowHrefs={promptChainRowHrefs}
                 />
 
                 <div className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-[#A6ACB6] sm:flex-row sm:items-center sm:justify-between">
@@ -1662,57 +1668,36 @@ export default async function AdminResourcePage({
                     responseText.length > 140 ? `${responseText.slice(0, 137)}...` : responseText;
 
                 return [
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        className="font-mono text-xs text-[#B7C5FF] underline-offset-2 hover:underline"
-                        key={`id-${id}`}
-                    >
+                    <span className="font-mono text-xs text-[#B7C5FF]" key={`id-${id}`}>
                         {id}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        key={`created-${id}`}
-                        className="text-[#D4D8DF] underline-offset-2 hover:underline"
-                    >
+                    </span>,
+                    <span key={`created-${id}`} className="text-[#D4D8DF]">
                         {created}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        className="font-mono text-xs text-[#D4D8DF] underline-offset-2 hover:underline"
-                        key={`model-${id}`}
-                    >
+                    </span>,
+                    <span className="font-mono text-xs text-[#D4D8DF]" key={`model-${id}`}>
                         {modelId}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        className="font-mono text-xs text-[#D4D8DF] underline-offset-2 hover:underline"
-                        key={`caption-request-${id}`}
-                    >
+                    </span>,
+                    <span className="font-mono text-xs text-[#D4D8DF]" key={`caption-request-${id}`}>
                         {captionRequestId}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        className="font-mono text-xs text-[#D4D8DF] underline-offset-2 hover:underline"
-                        key={`profile-${id}`}
-                    >
+                    </span>,
+                    <span className="font-mono text-xs text-[#D4D8DF]" key={`profile-${id}`}>
                         {profileId}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
-                        className="font-mono text-xs text-[#D4D8DF] underline-offset-2 hover:underline"
-                        key={`flavor-${id}`}
-                    >
+                    </span>,
+                    <span className="font-mono text-xs text-[#D4D8DF]" key={`flavor-${id}`}>
                         {flavorId}
-                    </Link>,
-                    <Link
-                        href={`/admin/data/llm-model-responses/${id}`}
+                    </span>,
+                    <span
                         key={`response-${id}`}
-                        className="block max-w-[460px] whitespace-pre-wrap break-words text-[#D4D8DF] underline-offset-2 hover:underline"
+                        className="block max-w-[460px] whitespace-pre-wrap break-words text-[#D4D8DF]"
                     >
                         {responsePreview}
-                    </Link>,
+                    </span>,
                 ];
             });
+        const responseRowHrefs = (responsesResult.data ?? []).map((row) => {
+            const record = asRecord(row);
+            return `/admin/data/llm-model-responses/${String(record.id ?? '')}`;
+        });
 
         return (
             <div className="space-y-4">
@@ -1751,6 +1736,7 @@ export default async function AdminResourcePage({
                     rows={responseRows}
                     emptyMessage="No model responses match this search."
                     rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
+                    rowHrefs={responseRowHrefs}
                 />
 
                 <div className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-[#A6ACB6] sm:flex-row sm:items-center sm:justify-between">
