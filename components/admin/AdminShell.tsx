@@ -14,6 +14,7 @@ type NavItem = {
     href: string;
     label: string;
     icon: React.ReactNode;
+    indent?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -49,6 +50,18 @@ const navItems: NavItem[] = [
                 <rect x="3" y="4" width="18" height="16" rx="2" />
                 <circle cx="9" cy="10" r="1.8" />
                 <path d="m21 16-4.5-4.5L8 20" />
+            </svg>
+        ),
+    },
+    {
+        href: '/admin/images/upload',
+        label: 'Upload Images',
+        indent: true,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M12 16V6" />
+                <path d="m7 11 5-5 5 5" />
+                <path d="M5 19h14" />
             </svg>
         ),
     },
@@ -276,7 +289,7 @@ export function AdminShell({ children, userEmail }: AdminShellProps) {
                                         active
                                             ? 'border-[#5E6AD2]/60 bg-[#5E6AD2]/25 text-white'
                                             : 'border-transparent text-[#C2C8D2] hover:border-white/10 hover:bg-white/[0.06]'
-                                    } ${isCollapsed ? 'justify-center px-2' : 'gap-2 px-3'}`}
+                                    } ${isCollapsed ? 'justify-center px-2' : `gap-2 ${item.indent ? 'pl-8 pr-3 text-[13px]' : 'px-3'}`}`}
                                 >
                                     {item.icon}
                                     {!isCollapsed ? item.label : null}

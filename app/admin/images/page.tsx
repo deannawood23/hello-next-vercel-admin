@@ -1,70 +1,9 @@
+import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { AdminImagesGrid } from '../../../components/admin/AdminImagesGrid';
+import { ImageUploadForm } from '../../../components/admin/ImageUploadForm';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
 import { normalizeImageRecord, parseObjectJson } from './_lib';
-
-async function createImage(formData: FormData) {
-    'use server';
-
-    const { supabase } = await requireSuperadmin();
-
-    const uploadBucket = process.env.SUPABASE_IMAGE_UPLOAD_BUCKET ?? 'images';
-    const explicitUrl = String(formData.get('image_url') ?? '').trim();
-    const metadataText = String(formData.get('metadata_json') ?? '').trim();
-    const metadata = metadataText ? parseObjectJson(metadataText) : null;
-
-    let uploadedPath = '';
-    let uploadedUrl = '';
-    const file = formData.get('image_file');
-
-    if (file instanceof File && file.size > 0) {
-        const extensionFromName = file.name.includes('.')
-            ? file.name.split('.').pop()
-            : '';
-        const extension = (extensionFromName || 'bin').toLowerCase();
-        const objectPath = `admin/${Date.now()}-${crypto.randomUUID()}.${extension}`;
-
-        const upload = await supabase.storage
-            .from(uploadBucket)
-            .upload(objectPath, file, {
-                contentType: file.type || undefined,
-                upsert: false,
-            });
-
-        if (!upload.error) {
-            uploadedPath = objectPath;
-            uploadedUrl = supabase.storage
-                .from(uploadBucket)
-                .getPublicUrl(objectPath).data.publicUrl;
-        }
-    }
-
-    const resolvedUrl = explicitUrl || uploadedUrl;
-    if (!resolvedUrl) {
-        return;
-    }
-
-    const base: Record<string, unknown> = metadata ? { ...metadata } : {};
-    if (uploadedPath) {
-        base.storage_path = uploadedPath;
-    }
-
-    const payloadCandidates: Array<Record<string, unknown>> = [
-        { ...base, url: resolvedUrl },
-        { ...base, cdn_url: resolvedUrl },
-        { ...base, storage_url: resolvedUrl },
-    ];
-
-    for (const payload of payloadCandidates) {
-        const result = await supabase.from('images').insert(payload);
-        if (!result.error) {
-            break;
-        }
-    }
-
-    revalidatePath('/admin/images');
-    revalidatePath('/admin');
-}
 
 async function updateImage(formData: FormData) {
     'use server';
@@ -152,54 +91,23 @@ export default async function AdminImagesPage() {
 
     return (
         <div className="space-y-4">
-            <div>
-                <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">Images</h2>
-                <p className="mt-1 text-sm text-[#A6ACB6]">Browse images visually, open a detail page by image ID, and manage descriptions.</p>
-            </div>
-            <AdminImagesGrid images={images} />
-            <form
-                action={createImage}
-                className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"
-            >
-                <p className="text-xs uppercase tracking-[0.14em] text-[#8A8F98]">
-                    Create image (upload file or paste URL)
-                </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1">
-                        <span className="text-xs text-[#A6ACB6]">Image URL (optional)</span>
-                        <input
-                            type="url"
-                            name="image_url"
-                            placeholder="https://..."
-                            className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
-                        />
-                    </label>
-                    <label className="space-y-1">
-                        <span className="text-xs text-[#A6ACB6]">Upload file (optional)</span>
-                        <input
-                            type="file"
-                            name="image_file"
-                            accept="image/*"
-                            className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[#EDEDEF] outline-none file:mr-3 file:rounded-md file:border-0 file:bg-[#5E6AD2]/30 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
-                        />
-                    </label>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">Images</h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">Browse images visually, open a detail page by image ID, and manage descriptions.</p>
                 </div>
-                <label className="space-y-1">
-                    <span className="text-xs text-[#A6ACB6]">Metadata JSON (optional object)</span>
-                    <textarea
-                        name="metadata_json"
-                        rows={4}
-                        defaultValue={'{}'}
-                        className="w-full rounded-lg border border-white/10 bg-black/20 p-3 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
-                    />
-                </label>
-                <button
-                    type="submit"
+                <Link
+                    href="/admin/images/upload"
                     className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
                 >
-                    Create Image Row
-                </button>
-            </form>
+                    Upload Images
+                </Link>
+            </div>
+            <AdminImagesGrid images={images} />
+            <ImageUploadForm
+                title="Quick Upload"
+                description="Add a new image here, or use the dedicated Upload Images page from the sidebar."
+            />
             <details className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-[#EDEDEF]">
                     Advanced raw JSON editor and delete
