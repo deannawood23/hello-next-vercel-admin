@@ -206,7 +206,7 @@ export default async function AdminResourcePage({
     searchParams,
 }: {
     params: Promise<{ resource: string }>;
-    searchParams?: Promise<{ edit?: string }>;
+    searchParams?: Promise<{ edit?: string; create?: string }>;
 }) {
     const { resource } = await params;
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -270,7 +270,8 @@ export default async function AdminResourcePage({
 
         const { supabase } = await requireSuperadmin();
         const captionExampleId = String(formData.get('id') ?? '').trim();
-        if (!captionExampleId) {
+        const mode = String(formData.get('mode') ?? '').trim();
+        if (mode !== 'create' && !captionExampleId) {
             return;
         }
 
@@ -283,15 +284,18 @@ export default async function AdminResourcePage({
                 ? Number(priorityRaw)
                 : null;
 
-        await supabase
-            .from('caption_examples')
-            .update({
-                image_description: imageDescriptionValue,
-                caption: captionValue,
-                explanation: explanationValue,
-                priority: priorityValue,
-            })
-            .eq('id', captionExampleId);
+        const payload = {
+            image_description: imageDescriptionValue,
+            caption: captionValue,
+            explanation: explanationValue,
+            priority: priorityValue,
+        };
+
+        if (mode === 'create') {
+            await supabase.from('caption_examples').insert(payload);
+        } else {
+            await supabase.from('caption_examples').update(payload).eq('id', captionExampleId);
+        }
 
         revalidatePath('/admin/data/caption-examples');
         revalidatePath('/admin');
@@ -453,6 +457,7 @@ export default async function AdminResourcePage({
 
     if (resource === 'caption-examples') {
         const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const isCreating = String(resolvedSearchParams?.create ?? '').trim() === '1';
         const editResult = editId
             ? await supabase
                   .from('caption_examples')
@@ -545,12 +550,22 @@ export default async function AdminResourcePage({
             ];
         });
 
+        const showModal = isCreating || Boolean(editId && editResult.data);
+
         return (
             <div className="space-y-4">
                 <div>
-                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
-                        {config.title}
-                    </h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                            {config.title}
+                        </h2>
+                        <Link
+                            href="/admin/data/caption-examples?create=1"
+                            className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                        >
+                            Add Caption Example
+                        </Link>
+                    </div>
                     <p className="mt-1 text-sm text-[#A6ACB6]">
                         Curated examples used for prompts and quality checks
                     </p>
@@ -568,20 +583,23 @@ export default async function AdminResourcePage({
                     rowClassName="transition-colors hover:bg-white/[0.04]"
                 />
 
-                {editId && editResult.data ? (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111318] px-4 py-8">
+                {showModal ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
                         <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-6 shadow-2xl">
                             <div className="space-y-2">
                                 <div>
                                     <h3 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
-                                        Edit Caption Example
+                                        {isCreating ? 'Add Caption Example' : 'Edit Caption Example'}
                                     </h3>
-                                    <p className="mt-1 font-mono text-xs text-[#8A8F98]">ID: {editId}</p>
+                                    {!isCreating ? (
+                                        <p className="mt-1 font-mono text-xs text-[#8A8F98]">ID: {editId}</p>
+                                    ) : null}
                                 </div>
                             </div>
 
                             <form action={saveCaptionExample} className="mt-6 space-y-5">
                                 <input type="hidden" name="id" value={editId} />
+                                <input type="hidden" name="mode" value={isCreating ? 'create' : 'edit'} />
 
                                 <label className="block space-y-2">
                                     <span className="text-sm font-semibold text-[#EDEDEF]">
