@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { DataTable } from '../../../../components/admin/DataTable';
 import { requireSuperadmin } from '../../../../src/lib/auth/requireSuperadmin';
-import { asRecord, shortId } from '../../_lib';
+import { asRecord, formatDate, pickDateValue, pickString, shortId } from '../../_lib';
 
 type ResourceMode = 'read' | 'crud' | 'read_update';
 
@@ -69,10 +71,10 @@ const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
         description: 'Read prompt chain records.',
         mode: 'read',
     },
-    'llm-responses': {
-        table: 'llm_responses',
-        title: 'LLM Responses',
-        description: 'Read LLM response records.',
+    'llm-model-responses': {
+        table: 'llm_model_responses',
+        title: 'LLM Model Responses',
+        description: 'Read exact prompts and model responses for audit trails.',
         mode: 'read',
     },
     'allowed-signup-domains': {
@@ -281,6 +283,133 @@ export default async function AdminResourcePage({
 
     const { supabase } = await requireSuperadmin();
     const { rows: data, error } = await fetchTableRows(supabase, config.table);
+
+    if (resource === 'caption-requests') {
+        const imageIds = Array.from(
+            new Set(
+                data
+                    .map((row) => pickString(row, ['image_id'], ''))
+                    .filter((value) => value && value !== 'N/A')
+            )
+        );
+        const profileIds = Array.from(
+            new Set(
+                data
+                    .map((row) => pickString(row, ['profile_id'], ''))
+                    .filter((value) => value && value !== 'N/A')
+            )
+        );
+
+        const [imagesResult, profilesResult] = await Promise.all([
+            imageIds.length > 0
+                ? supabase.from('images').select('*').in('id', imageIds)
+                : Promise.resolve({ data: [], error: null }),
+            profileIds.length > 0
+                ? supabase.from('profiles').select('id, email').in('id', profileIds)
+                : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        const imageUrlById = new Map<string, string>();
+        for (const image of imagesResult.data ?? []) {
+            const row = asRecord(image);
+            const id = pickString(row, ['id'], '');
+            const url = pickString(row, ['url', 'storage_url', 'cdn_url'], '');
+            if (id && url) {
+                imageUrlById.set(id, url);
+            }
+        }
+
+        const emailByProfileId = new Map<string, string>();
+        for (const profile of profilesResult.data ?? []) {
+            const row = asRecord(profile);
+            const id = pickString(row, ['id'], '');
+            const email = pickString(row, ['email'], '');
+            if (id && email) {
+                emailByProfileId.set(id, email);
+            }
+        }
+
+        const requestRows = data.map((row) => {
+            const rawId = row.id;
+            const id =
+                typeof rawId === 'number'
+                    ? String(rawId)
+                    : typeof rawId === 'string' && rawId.trim().length > 0
+                    ? rawId
+                    : 'N/A';
+            const imageId = pickString(row, ['image_id'], '');
+            const profileId = pickString(row, ['profile_id'], '');
+            const imageUrl = imageUrlById.get(imageId) ?? '';
+            const email = emailByProfileId.get(profileId) ?? 'Unknown';
+            const createdAt = formatDate(
+                pickDateValue(row, ['created_datetime_utc', 'created_at'])
+            );
+
+            return [
+                <Link
+                    href={`/admin/data/caption-requests/${id}`}
+                    key={`id-${id}`}
+                    className="block font-mono text-xs text-[#B7C5FF] underline-offset-2 hover:underline"
+                >
+                    {id}
+                </Link>,
+                <Link
+                    href={`/admin/data/caption-requests/${id}`}
+                    key={`image-${id}`}
+                    className="block"
+                >
+                    {imageUrl ? (
+                        <img
+                            src={imageUrl}
+                            alt={`Caption request ${id}`}
+                            className="h-14 w-14 rounded-lg object-cover"
+                        />
+                    ) : (
+                        <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-[11px] text-[#7E8590]">
+                            No image
+                        </div>
+                    )}
+                </Link>,
+                <Link
+                    href={`/admin/data/caption-requests/${id}`}
+                    key={`email-${id}`}
+                    className="block max-w-[260px] truncate text-[#D4D8DF]"
+                >
+                    {email}
+                </Link>,
+                <Link
+                    href={`/admin/data/caption-requests/${id}`}
+                    key={`created-${id}`}
+                    className="block text-[#D4D8DF]"
+                >
+                    {createdAt}
+                </Link>,
+            ];
+        });
+
+        return (
+            <div className="space-y-4">
+                <div>
+                    <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">
+                        {config.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#A6ACB6]">{config.description}</p>
+                    {error ? (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-200">
+                            Query warning: {error}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DataTable
+                    columns={['ID', 'Image', 'Created By', 'Created']}
+                    rows={requestRows}
+                    emptyMessage={`No rows found in ${config.table}.`}
+                />
+            </div>
+        );
+    }
+
     const allKeys = Array.from(
         new Set(data.flatMap((row) => Object.keys(row)))
     ).filter((key) => key !== 'embedding');
