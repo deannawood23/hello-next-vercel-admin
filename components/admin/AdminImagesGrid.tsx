@@ -1,118 +1,127 @@
 /* eslint-disable @next/next/no-img-element */
-'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import type { ImageRecord } from '../../app/admin/images/_lib';
 import { formatImageTimestamp } from '../../app/admin/images/_lib';
 
 type AdminImagesGridProps = {
     images: ImageRecord[];
+    query: string;
+    category: FilterMode;
+    sort: SortMode;
+    currentPage: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    showingFrom: number;
+    showingTo: number;
+    error: string | null;
 };
 
 type FilterMode = 'all' | 'common' | 'uploaded';
 type SortMode = 'recent' | 'oldest';
 
-export function AdminImagesGrid({ images }: AdminImagesGridProps) {
-    const [query, setQuery] = useState('');
-    const [filterMode, setFilterMode] = useState<FilterMode>('all');
-    const [sortMode, setSortMode] = useState<SortMode>('recent');
-
-    const normalizedQuery = query.trim().toLowerCase();
-    const filteredImages = [...images]
-        .filter((image) => {
-            if (filterMode === 'common') {
-                return image.isCommonUse;
-            }
-
-            if (filterMode === 'uploaded') {
-                return !image.isCommonUse;
-            }
-
-            return true;
-        })
-        .filter((image) => {
-            if (!normalizedQuery) {
-                return true;
-            }
-
-            return image.id.toLowerCase().includes(normalizedQuery);
-        })
-        .sort((a, b) => {
-            const left = Date.parse(a.createdAt ?? '') || 0;
-            const right = Date.parse(b.createdAt ?? '') || 0;
-            return sortMode === 'recent' ? right - left : left - right;
-        });
+export function AdminImagesGrid({
+    images,
+    query,
+    category,
+    sort,
+    currentPage,
+    totalCount,
+    totalPages,
+    showingFrom,
+    showingTo,
+    error,
+}: AdminImagesGridProps) {
+    const previousHref = buildImagesHref({
+        query,
+        category,
+        sort,
+        page: Math.max(1, currentPage - 1),
+    });
+    const nextHref = buildImagesHref({
+        query,
+        category,
+        sort,
+        page: Math.min(totalPages, currentPage + 1),
+    });
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+            <form className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
                 <label className="space-y-1">
                     <span className="text-xs uppercase tracking-[0.14em] text-[#8A8F98]">
                         Search by image ID
                     </span>
                     <input
                         type="search"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
+                        name="q"
+                        defaultValue={query}
                         placeholder="de57bc47-8b61-4ac1-801b-61b9ee5b7ce2"
                         className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
                     />
                 </label>
-                <div className="space-y-1">
+                <label className="space-y-1">
                     <span className="text-xs uppercase tracking-[0.14em] text-[#8A8F98]">
                         Category
                     </span>
-                    <div className="flex flex-wrap gap-2">
-                        {[
-                            ['all', 'All Images'],
-                            ['common', 'Common Use'],
-                            ['uploaded', 'User Uploaded'],
-                        ].map(([value, label]) => {
-                            const active = filterMode === value;
-                            return (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setFilterMode(value as FilterMode)}
-                                    className={`rounded-full border px-3 py-2 text-sm font-medium transition ${
-                                        active
-                                            ? 'border-[#5E6AD2]/70 bg-[#5E6AD2]/25 text-white'
-                                            : 'border-white/10 bg-black/20 text-[#B6BCC6] hover:border-white/20 hover:text-white'
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                    <select
+                        name="category"
+                        defaultValue={category}
+                        className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
+                    >
+                        <option value="all">All Images</option>
+                        <option value="common">Common Use</option>
+                        <option value="uploaded">User Uploaded</option>
+                    </select>
+                </label>
                 <label className="space-y-1">
                     <span className="text-xs uppercase tracking-[0.14em] text-[#8A8F98]">Sort</span>
                     <select
-                        value={sortMode}
-                        onChange={(event) => setSortMode(event.target.value as SortMode)}
+                        name="sort"
+                        defaultValue={sort}
                         className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[#EDEDEF] outline-none focus:border-[#5E6AD2]/70"
                     >
                         <option value="recent">Most recent</option>
                         <option value="oldest">Oldest</option>
                     </select>
                 </label>
-            </div>
+                <div className="flex items-end gap-2">
+                    <input type="hidden" name="page" value="1" />
+                    <button
+                        type="submit"
+                        className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Apply
+                    </button>
+                    <Link
+                        href="/admin/images"
+                        className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                    >
+                        Clear
+                    </Link>
+                </div>
+            </form>
 
             <div className="flex items-center justify-between text-sm text-[#A6ACB6]">
                 <span>
-                    Showing {filteredImages.length} of {images.length} images
+                    Showing {showingFrom} - {showingTo} of {totalCount} images
                 </span>
             </div>
 
-            {filteredImages.length === 0 ? (
+            {error ? (
+                <div className="rounded-2xl border border-amber-400/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-200">
+                    Query warning: {error}
+                </div>
+            ) : null}
+
+            {images.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center text-sm text-[#8A8F98]">
                     No images match the current search and filters.
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {filteredImages.map((image) => (
+                    {images.map((image) => (
                         <Link
                             key={image.id}
                             href={`/admin/images/${image.id}`}
@@ -160,6 +169,71 @@ export function AdminImagesGrid({ images }: AdminImagesGridProps) {
                     ))}
                 </div>
             )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-[#A6ACB6]">
+                <span>
+                    Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                    {currentPage > 1 ? (
+                        <Link
+                            href={previousHref}
+                            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                        >
+                            Previous
+                        </Link>
+                    ) : (
+                        <span className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 font-semibold text-[#6F7682]">
+                            Previous
+                        </span>
+                    )}
+                    {currentPage < totalPages ? (
+                        <Link
+                            href={nextHref}
+                            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                        >
+                            Next
+                        </Link>
+                    ) : (
+                        <span className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 font-semibold text-[#6F7682]">
+                            Next
+                        </span>
+                    )}
+                </div>
+            </div>
         </div>
     );
+}
+
+function buildImagesHref({
+    query,
+    category,
+    sort,
+    page,
+}: {
+    query: string;
+    category: FilterMode;
+    sort: SortMode;
+    page: number;
+}) {
+    const params = new URLSearchParams();
+
+    if (query) {
+        params.set('q', query);
+    }
+
+    if (category !== 'all') {
+        params.set('category', category);
+    }
+
+    if (sort !== 'recent') {
+        params.set('sort', sort);
+    }
+
+    if (page > 1) {
+        params.set('page', String(page));
+    }
+
+    const search = params.toString();
+    return search ? `/admin/images?${search}` : '/admin/images';
 }

@@ -275,11 +275,6 @@ export default async function AdminCaptionsPage({
                     ) : null}
                 </div>
             </form>
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <p className="text-2xl font-semibold text-[#EDEDEF]">
-                    {totalCaptions.toLocaleString('en-US')} Total Captions
-                </p>
-            </div>
             <DataTable
                 columns={['Image', 'Caption', 'Created By', 'Created', 'Votes']}
                 rows={rows}

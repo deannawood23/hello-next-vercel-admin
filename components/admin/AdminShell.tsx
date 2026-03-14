@@ -192,7 +192,6 @@ const navItems: NavItem[] = [
     {
         href: '/admin/data/whitelisted-email-addresses',
         label: 'Whitelisted Emails',
-        indent: true,
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
                 <rect x="3" y="6" width="18" height="12" rx="2" />

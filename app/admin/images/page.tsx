@@ -1,60 +1,66 @@
 import Link from 'next/link';
-import { revalidatePath } from 'next/cache';
 import { AdminImagesGrid } from '../../../components/admin/AdminImagesGrid';
-import { ImageUploadForm } from '../../../components/admin/ImageUploadForm';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
-import { normalizeImageRecord, parseObjectJson } from './_lib';
+import { normalizeImageRecord } from './_lib';
 
-async function updateImage(formData: FormData) {
-    'use server';
+const PAGE_SIZE = 8;
 
-    const imageId = String(formData.get('image_id') ?? '').trim();
-    const payloadText = String(formData.get('payload') ?? '').trim();
-    const payload = parseObjectJson(payloadText);
+type AdminImagesPageProps = {
+    searchParams?: Promise<{
+        page?: string;
+        q?: string;
+        category?: string;
+        sort?: string;
+    }>;
+};
 
-    if (!imageId || !payload) {
-        return;
-    }
-
+export default async function AdminImagesPage({ searchParams }: AdminImagesPageProps) {
     const { supabase } = await requireSuperadmin();
-    await supabase.from('images').update(payload).eq('id', imageId);
+    const resolvedSearchParams = (await searchParams) ?? {};
+    const query = String(resolvedSearchParams.q ?? '').trim();
+    const normalizedQuery = query.toLowerCase();
+    const categoryParam = String(resolvedSearchParams.category ?? 'all').trim();
+    const sortParam = String(resolvedSearchParams.sort ?? 'recent').trim();
+    const pageParam = Number.parseInt(String(resolvedSearchParams.page ?? '1'), 10);
+    const category =
+        categoryParam === 'common' || categoryParam === 'uploaded' ? categoryParam : 'all';
+    const sort = sortParam === 'oldest' ? 'oldest' : 'recent';
+    const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+    const rangeFrom = (currentPage - 1) * PAGE_SIZE;
+    const rangeTo = rangeFrom + PAGE_SIZE - 1;
 
-    revalidatePath('/admin/images');
-    revalidatePath('/admin');
-}
-
-async function deleteImage(formData: FormData) {
-    'use server';
-
-    const imageId = String(formData.get('image_id') ?? '');
-    if (!imageId) {
-        return;
-    }
-
-    const { supabase } = await requireSuperadmin();
-
-    await supabase.from('images').delete().eq('id', imageId);
-
-    revalidatePath('/admin/images');
-    revalidatePath('/admin');
-}
-
-export default async function AdminImagesPage() {
-    const { supabase } = await requireSuperadmin();
-
-    const primary = await supabase
+    let primaryQuery = supabase
         .from('images')
-        .select('*')
-        .order('created_datetime_utc', { ascending: false })
-        .limit(200);
+        .select('*', { count: 'exact' })
+        .order('created_datetime_utc', { ascending: sort === 'oldest' });
+
+    if (category === 'common') {
+        primaryQuery = primaryQuery.eq('is_common_use', true);
+    }
+
+    if (category === 'uploaded') {
+        primaryQuery = primaryQuery.eq('is_common_use', false);
+    }
+
+    if (normalizedQuery) {
+        primaryQuery = primaryQuery.ilike('id', `%${normalizedQuery}%`);
+    }
+
+    const primary = await primaryQuery.range(rangeFrom, rangeTo);
     const fallback = primary.error
         ? await supabase
               .from('images')
-              .select('*')
-              .order('created_at', { ascending: false })
-              .limit(200)
+              .select('*', { count: 'exact' })
+              .order('created_at', { ascending: sort === 'oldest' })
+              .range(rangeFrom, rangeTo)
         : null;
+    const dataError = primary.error ? fallback?.error ?? primary.error : null;
     const data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
+    const totalCount = primary.error ? fallback?.count ?? 0 : primary.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const showingFrom = totalCount === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+    const showingTo = totalCount === 0 ? 0 : Math.min(showingFrom + imagesLength(data) - 1, totalCount);
 
     const profileIds = Array.from(
         new Set(
@@ -103,52 +109,23 @@ export default async function AdminImagesPage() {
                     Upload Images
                 </Link>
             </div>
-            <AdminImagesGrid images={images} />
-            <ImageUploadForm
-                title="Quick Upload"
-                description="Add a new image here, or use the dedicated Upload Images page from the sidebar."
+            <AdminImagesGrid
+                images={images}
+                query={query}
+                category={category}
+                sort={sort}
+                currentPage={safeCurrentPage}
+                pageSize={PAGE_SIZE}
+                totalCount={totalCount}
+                totalPages={totalPages}
+                showingFrom={showingFrom}
+                showingTo={showingTo}
+                error={dataError?.message ?? null}
             />
-            <details className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <summary className="cursor-pointer text-sm font-semibold text-[#EDEDEF]">
-                    Advanced raw JSON editor and delete
-                </summary>
-                <div className="mt-4 grid gap-4">
-                    {images.map((image) => (
-                        <div
-                            key={image.id}
-                            className="rounded-xl border border-white/10 bg-black/20 p-4"
-                        >
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                                <span className="font-mono text-xs text-[#EDEDEF]">{image.id}</span>
-                                <form action={deleteImage}>
-                                    <input type="hidden" name="image_id" value={image.id} />
-                                    <button
-                                        type="submit"
-                                        className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
-                                    >
-                                        Delete
-                                    </button>
-                                </form>
-                            </div>
-                            <form action={updateImage} className="space-y-2">
-                                <input type="hidden" name="image_id" value={image.id} />
-                                <textarea
-                                    name="payload"
-                                    defaultValue={JSON.stringify(image.raw, null, 2)}
-                                    rows={8}
-                                    className="w-full rounded-lg border border-white/10 bg-black/20 p-3 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
-                                />
-                                <button
-                                    type="submit"
-                                    className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
-                                >
-                                    Save Raw JSON
-                                </button>
-                            </form>
-                        </div>
-                    ))}
-                </div>
-            </details>
         </div>
     );
+}
+
+function imagesLength(rows: unknown[]) {
+    return rows.length;
 }
