@@ -1,20 +1,7 @@
 import { revalidatePath } from 'next/cache';
-import { DataTable } from '../../../components/admin/DataTable';
-import { ImageFlagButton } from '../../../components/admin/ImageFlagButton';
+import { AdminImagesGrid } from '../../../components/admin/AdminImagesGrid';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
-import { asRecord, formatDate, pickDateValue, pickString, shortId } from '../_lib';
-
-function parseObjectJson(text: string): Record<string, unknown> | null {
-    try {
-        const parsed = JSON.parse(text);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return null;
-        }
-        return parsed as Record<string, unknown>;
-    } catch {
-        return null;
-    }
-}
+import { normalizeImageRecord, parseObjectJson } from './_lib';
 
 async function createImage(formData: FormData) {
     'use server';
@@ -130,74 +117,46 @@ export default async function AdminImagesPage() {
         : null;
     const data = primary.error ? fallback?.data ?? [] : primary.data ?? [];
 
-    const rows = data.map((raw) => {
-        const row = asRecord(raw);
-        const id = pickString(row, ['id']);
-        const url = pickString(row, ['url', 'cdn_url', 'cdnUrl', 'storage_url'], 'N/A');
-        const createdAt = formatDate(
-            pickDateValue(row, ['created_datetime_utc', 'created_at'])
-        );
-        const uploader = pickString(row, ['profile_id', 'user_id', 'uploader_id'], 'N/A');
-        const rawJson = JSON.stringify(row, null, 2);
+    const profileIds = Array.from(
+        new Set(
+            data
+                .map((row) => {
+                    const value = row?.profile_id;
+                    return typeof value === 'string' && value.trim().length > 0 ? value : null;
+                })
+                .filter((value): value is string => Boolean(value))
+        )
+    );
+    const uploaderById = new Map<string, Record<string, unknown>>();
 
-        return [
-            <span className="font-mono text-xs" key={`id-${id}`}>
-                {shortId(id)}
-            </span>,
-            <a
-                key={`url-${id}`}
-                href={url === 'N/A' ? undefined : url}
-                target="_blank"
-                rel="noreferrer"
-                className="max-w-[280px] truncate text-[#B7C5FF] underline-offset-2 hover:underline"
-            >
-                {url}
-            </a>,
-            <span key={`created-${id}`}>{createdAt}</span>,
-            <span className="font-mono text-xs" key={`uploader-${id}`}>
-                {shortId(uploader)}
-            </span>,
-            <div className="flex items-center gap-2" key={`actions-${id}`}>
-                <details>
-                    <summary className="cursor-pointer rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35">
-                        Edit
-                    </summary>
-                    <form action={updateImage} className="mt-2 space-y-2 rounded-lg border border-white/10 bg-black/25 p-2">
-                        <input type="hidden" name="image_id" value={id} />
-                        <textarea
-                            name="payload"
-                            defaultValue={rawJson}
-                            rows={6}
-                            className="w-80 rounded-lg border border-white/10 bg-black/20 p-2 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
-                        />
-                        <button
-                            type="submit"
-                            className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
-                        >
-                            Save
-                        </button>
-                    </form>
-                </details>
-                <form action={deleteImage}>
-                    <input type="hidden" name="image_id" value={id} />
-                    <button
-                        type="submit"
-                        className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
-                    >
-                        Delete
-                    </button>
-                </form>
-                <ImageFlagButton imageId={id} />
-            </div>,
-        ];
-    });
+    if (profileIds.length > 0) {
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, username, name, display_name')
+            .in('id', profileIds);
+
+        for (const profile of profiles ?? []) {
+            if (profile?.id && typeof profile.id === 'string') {
+                uploaderById.set(profile.id, profile as Record<string, unknown>);
+            }
+        }
+    }
+
+    const images = data
+        .map((raw) => {
+            const profileId =
+                raw?.profile_id && typeof raw.profile_id === 'string' ? raw.profile_id : null;
+            return normalizeImageRecord(raw, profileId ? uploaderById.get(profileId) : null);
+        })
+        .filter((image) => image.id);
 
     return (
         <div className="space-y-4">
             <div>
                 <h2 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#EDEDEF]">Images</h2>
-                <p className="mt-1 text-sm text-[#A6ACB6]">Manage uploaded images and moderation flags.</p>
+                <p className="mt-1 text-sm text-[#A6ACB6]">Browse images visually, open a detail page by image ID, and manage descriptions.</p>
             </div>
+            <AdminImagesGrid images={images} />
             <form
                 action={createImage}
                 className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"
@@ -241,11 +200,47 @@ export default async function AdminImagesPage() {
                     Create Image Row
                 </button>
             </form>
-            <DataTable
-                columns={['ID', 'CDN / URL', 'Created', 'Uploader', 'Actions']}
-                rows={rows}
-                emptyMessage="No image rows found."
-            />
+            <details className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-[#EDEDEF]">
+                    Advanced raw JSON editor and delete
+                </summary>
+                <div className="mt-4 grid gap-4">
+                    {images.map((image) => (
+                        <div
+                            key={image.id}
+                            className="rounded-xl border border-white/10 bg-black/20 p-4"
+                        >
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                <span className="font-mono text-xs text-[#EDEDEF]">{image.id}</span>
+                                <form action={deleteImage}>
+                                    <input type="hidden" name="image_id" value={image.id} />
+                                    <button
+                                        type="submit"
+                                        className="rounded-lg border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-400/25"
+                                    >
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                            <form action={updateImage} className="space-y-2">
+                                <input type="hidden" name="image_id" value={image.id} />
+                                <textarea
+                                    name="payload"
+                                    defaultValue={JSON.stringify(image.raw, null, 2)}
+                                    rows={8}
+                                    className="w-full rounded-lg border border-white/10 bg-black/20 p-3 font-mono text-xs text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                                />
+                                <button
+                                    type="submit"
+                                    className="rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                                >
+                                    Save Raw JSON
+                                </button>
+                            </form>
+                        </div>
+                    ))}
+                </div>
+            </details>
         </div>
     );
 }
