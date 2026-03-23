@@ -34,7 +34,7 @@ export function DivergingBarChart({ title, data }: DivergingBarChartProps) {
                         >
                             <div className="text-[10px] text-[#8A8F98]">{point.value}</div>
                             <div
-                                className="pointer-events-none absolute -top-3 left-1/2 z-10 min-w-[96px] -translate-x-1/2 -translate-y-full rounded-lg border border-white/10 bg-[#111318]/95 px-2.5 py-2 text-center text-[10px] text-[#EDEDEF] opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                className="pointer-events-none absolute left-1/2 top-1/2 z-10 min-w-[96px] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-white/10 bg-[#111318]/95 px-2.5 py-2 text-center text-[10px] text-[#EDEDEF] opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
                                 role="tooltip"
                             >
                                 <div className="text-emerald-300">Upvotes: {point.upvotes}</div>
