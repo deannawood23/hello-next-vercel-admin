@@ -2,7 +2,12 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { requireSuperadmin } from '../../../../../src/lib/auth/requireSuperadmin';
-import { asRecord, pickString } from '../../../_lib';
+import {
+    asRecord,
+    pickString,
+    stripAuditFields,
+    withInsertAuditFields,
+} from '../../../_lib';
 
 function pickNumber(row: Record<string, unknown>, keys: string[], fallback: number | null = null) {
     for (const key of keys) {
@@ -67,7 +72,7 @@ export default async function ManageFlavorStepsPage({
     async function duplicateFlavor() {
         'use server';
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const currentFlavorId = Number(id);
         const originalFlavorResult = await supabase
             .from('humor_flavors')
@@ -85,17 +90,15 @@ export default async function ManageFlavorStepsPage({
             .eq('humor_flavor_id', Number.isNaN(currentFlavorId) ? id : currentFlavorId)
             .order('order_by', { ascending: true });
 
-        const flavorPayload = { ...originalFlavor } as Record<string, unknown>;
+        const flavorPayload = stripAuditFields(originalFlavor);
         delete flavorPayload.id;
         delete flavorPayload.created_at;
-        delete flavorPayload.created_datetime_utc;
         delete flavorPayload.updated_at;
-        delete flavorPayload.modified_datetime_utc;
         flavorPayload.slug = `${pickString(originalFlavor, ['slug'], `flavor-${id}`)}-copy`;
 
         const insertedFlavor = await supabase
             .from('humor_flavors')
-            .insert(flavorPayload)
+            .insert(withInsertAuditFields(flavorPayload, profile.id))
             .select('id')
             .maybeSingle();
 
@@ -108,14 +111,12 @@ export default async function ManageFlavorStepsPage({
         const originalSteps = (originalStepsResult.data ?? []).map((row) => asRecord(row));
         if (originalSteps.length > 0) {
             const stepPayloads = originalSteps.map((step) => {
-                const payload = { ...step } as Record<string, unknown>;
+                const payload = stripAuditFields(step);
                 delete payload.id;
                 delete payload.created_at;
-                delete payload.created_datetime_utc;
                 delete payload.updated_at;
-                delete payload.modified_datetime_utc;
                 payload.humor_flavor_id = newFlavorId;
-                return payload;
+                return withInsertAuditFields(payload, profile.id);
             });
             await supabase.from('humor_flavor_steps').insert(stepPayloads);
         }
@@ -127,7 +128,7 @@ export default async function ManageFlavorStepsPage({
     async function addHumorFlavorStep(formData: FormData) {
         'use server';
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const targetFlavorId = Number(String(formData.get('humor_flavor_id') ?? ''));
         if (Number.isNaN(targetFlavorId)) {
             return;
@@ -144,18 +145,23 @@ export default async function ManageFlavorStepsPage({
         const temperature = temperatureRaw.length > 0 ? Number(temperatureRaw) : null;
         const description = String(formData.get('description') ?? '').trim();
 
-        await supabase.from('humor_flavor_steps').insert({
-            humor_flavor_id: targetFlavorId,
-            order_by: stepNumber,
-            llm_model_id: Number.isNaN(llmModelId) ? null : llmModelId,
-            humor_flavor_step_type_id: Number.isNaN(stepTypeId) ? null : stepTypeId,
-            llm_input_type_id: Number.isNaN(inputTypeId) ? null : inputTypeId,
-            llm_output_type_id: Number.isNaN(outputTypeId) ? null : outputTypeId,
-            llm_system_prompt: systemPrompt,
-            llm_user_prompt: userPrompt,
-            llm_temperature: temperature,
-            description,
-        });
+        await supabase.from('humor_flavor_steps').insert(
+            withInsertAuditFields(
+                {
+                    humor_flavor_id: targetFlavorId,
+                    order_by: stepNumber,
+                    llm_model_id: Number.isNaN(llmModelId) ? null : llmModelId,
+                    humor_flavor_step_type_id: Number.isNaN(stepTypeId) ? null : stepTypeId,
+                    llm_input_type_id: Number.isNaN(inputTypeId) ? null : inputTypeId,
+                    llm_output_type_id: Number.isNaN(outputTypeId) ? null : outputTypeId,
+                    llm_system_prompt: systemPrompt,
+                    llm_user_prompt: userPrompt,
+                    llm_temperature: temperature,
+                    description,
+                },
+                profile.id
+            )
+        );
 
         revalidatePath(`/admin/data/humor-flavors/${targetFlavorId}`);
         revalidatePath('/admin/data/humor-flavors');

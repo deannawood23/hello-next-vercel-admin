@@ -8,6 +8,7 @@ import {
     normalizeImageRecord,
     parseObjectJson,
 } from '../_lib';
+import { withUpdateAuditFields } from '../../_lib';
 
 async function updateImageDescription(formData: FormData) {
     'use server';
@@ -20,13 +21,18 @@ async function updateImageDescription(formData: FormData) {
         return;
     }
 
-    const { supabase } = await requireSuperadmin();
+    const { supabase, profile } = await requireSuperadmin();
     await supabase
         .from('images')
-        .update({
-            image_description: description || null,
-            additional_context: additionalContext || null,
-        })
+        .update(
+            withUpdateAuditFields(
+                {
+                    image_description: description || null,
+                    additional_context: additionalContext || null,
+                },
+                profile.id
+            )
+        )
         .eq('id', imageId);
 
     revalidatePath('/admin/images');
@@ -44,8 +50,11 @@ async function updateImagePayload(formData: FormData) {
         return;
     }
 
-    const { supabase } = await requireSuperadmin();
-    await supabase.from('images').update(payload).eq('id', imageId);
+    const { supabase, profile } = await requireSuperadmin();
+    await supabase
+        .from('images')
+        .update(withUpdateAuditFields(payload, profile.id))
+        .eq('id', imageId);
 
     revalidatePath('/admin/images');
     revalidatePath(`/admin/images/${imageId}`);

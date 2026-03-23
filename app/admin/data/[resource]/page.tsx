@@ -5,7 +5,16 @@ import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { DataTable } from '../../../../components/admin/DataTable';
 import { requireSuperadmin } from '../../../../src/lib/auth/requireSuperadmin';
-import { asRecord, formatDate, pickDateValue, pickString, shortId } from '../../_lib';
+import {
+    asRecord,
+    formatDate,
+    pickDateValue,
+    pickString,
+    shortId,
+    stripAuditFields,
+    withInsertAuditFields,
+    withUpdateAuditFields,
+} from '../../_lib';
 
 type ResourceMode = 'read' | 'crud' | 'read_update';
 
@@ -244,7 +253,7 @@ export default async function AdminResourcePage({
         }
 
         const { supabase } = await requireSuperadmin();
-        await supabase.from(config.table).insert(payload);
+        await supabase.from(config.table).insert(withInsertAuditFields(payload, profile.id));
 
         revalidatePath(`/admin/data/${resource}`);
         revalidatePath('/admin');
@@ -269,7 +278,7 @@ export default async function AdminResourcePage({
         const { supabase } = await requireSuperadmin();
         await supabase
             .from(config.table)
-            .update(payload)
+            .update(withUpdateAuditFields(payload, profile.id))
             .eq(matchKey, parseScalar(matchValue));
 
         revalidatePath(`/admin/data/${resource}`);
@@ -307,9 +316,14 @@ export default async function AdminResourcePage({
         };
 
         if (mode === 'create') {
-            await supabase.from('caption_examples').insert(payload);
+            await supabase
+                .from('caption_examples')
+                .insert(withInsertAuditFields(payload, profile.id));
         } else {
-            await supabase.from('caption_examples').update(payload).eq('id', captionExampleId);
+            await supabase
+                .from('caption_examples')
+                .update(withUpdateAuditFields(payload, profile.id))
+                .eq('id', captionExampleId);
         }
 
         revalidatePath('/admin/data/caption-examples');
@@ -350,9 +364,12 @@ export default async function AdminResourcePage({
         };
 
         if (mode === 'create') {
-            await supabase.from('terms').insert(payload);
+            await supabase.from('terms').insert(withInsertAuditFields(payload, profile.id));
         } else {
-            await supabase.from('terms').update(payload).eq('id', parseScalar(termId));
+            await supabase
+                .from('terms')
+                .update(withUpdateAuditFields(payload, profile.id))
+                .eq('id', parseScalar(termId));
         }
 
         revalidatePath('/admin/data/terms');
@@ -409,9 +426,14 @@ export default async function AdminResourcePage({
         };
 
         if (mode === 'create') {
-            await supabase.from('llm_models').insert(payload);
+            await supabase
+                .from('llm_models')
+                .insert(withInsertAuditFields(payload, profile.id));
         } else {
-            await supabase.from('llm_models').update(payload).eq('id', parseScalar(modelId));
+            await supabase
+                .from('llm_models')
+                .update(withUpdateAuditFields(payload, profile.id))
+                .eq('id', parseScalar(modelId));
         }
 
         revalidatePath('/admin/data/llm-models');
@@ -456,9 +478,14 @@ export default async function AdminResourcePage({
         const payload = { name };
 
         if (mode === 'create') {
-            await supabase.from('llm_providers').insert(payload);
+            await supabase
+                .from('llm_providers')
+                .insert(withInsertAuditFields(payload, profile.id));
         } else {
-            await supabase.from('llm_providers').update(payload).eq('id', parseScalar(providerId));
+            await supabase
+                .from('llm_providers')
+                .update(withUpdateAuditFields(payload, profile.id))
+                .eq('id', parseScalar(providerId));
         }
 
         revalidatePath('/admin/data/llm-providers');
@@ -492,13 +519,15 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const domain = String(formData.get('domain') ?? '').trim().toLowerCase();
         if (!domain) {
             return;
         }
 
-        await supabase.from('allowed_signup_domains').insert({ apex_domain: domain });
+        await supabase
+            .from('allowed_signup_domains')
+            .insert(withInsertAuditFields({ apex_domain: domain }, profile.id));
 
         revalidatePath('/admin/data/allowed-signup-domains');
         revalidatePath('/admin');
@@ -511,7 +540,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const id = String(formData.get('id') ?? '').trim();
         const domain = String(formData.get('domain') ?? '').trim().toLowerCase();
         if (!id || !domain) {
@@ -520,7 +549,7 @@ export default async function AdminResourcePage({
 
         await supabase
             .from('allowed_signup_domains')
-            .update({ apex_domain: domain })
+            .update(withUpdateAuditFields({ apex_domain: domain }, profile.id))
             .eq('id', parseScalar(id));
 
         revalidatePath('/admin/data/allowed-signup-domains');
@@ -553,13 +582,15 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const emailAddress = String(formData.get('email_address') ?? '').trim().toLowerCase();
         if (!emailAddress) {
             return;
         }
 
-        await supabase.from('whitelist_email_addresses').insert({ email_address: emailAddress });
+        await supabase
+            .from('whitelist_email_addresses')
+            .insert(withInsertAuditFields({ email_address: emailAddress }, profile.id));
 
         revalidatePath('/admin/data/whitelisted-email-addresses');
         revalidatePath('/admin');
@@ -572,7 +603,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const id = String(formData.get('id') ?? '').trim();
         const emailAddress = String(formData.get('email_address') ?? '').trim().toLowerCase();
         if (!id || !emailAddress) {
@@ -581,10 +612,7 @@ export default async function AdminResourcePage({
 
         await supabase
             .from('whitelist_email_addresses')
-            .update({
-                email_address: emailAddress,
-                modified_datetime_utc: new Date().toISOString(),
-            })
+            .update(withUpdateAuditFields({ email_address: emailAddress }, profile.id))
             .eq('id', parseScalar(id));
 
         revalidatePath('/admin/data/whitelisted-email-addresses');
@@ -617,17 +645,22 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const humorFlavorId = Number(String(formData.get('humor_flavor_id') ?? ''));
         const captionCount = Number(String(formData.get('caption_count') ?? ''));
         if (Number.isNaN(humorFlavorId) || Number.isNaN(captionCount)) {
             return;
         }
 
-        await supabase.from('humor_flavor_mix').insert({
-            humor_flavor_id: humorFlavorId,
-            caption_count: captionCount,
-        });
+        await supabase.from('humor_flavor_mix').insert(
+            withInsertAuditFields(
+                {
+                    humor_flavor_id: humorFlavorId,
+                    caption_count: captionCount,
+                },
+                profile.id
+            )
+        );
 
         revalidatePath('/admin/data/humor-mix');
         revalidatePath('/admin');
@@ -640,7 +673,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const mixId = Number(String(formData.get('id') ?? ''));
         const captionCount = Number(String(formData.get('caption_count') ?? ''));
         if (Number.isNaN(mixId) || Number.isNaN(captionCount)) {
@@ -649,7 +682,7 @@ export default async function AdminResourcePage({
 
         await supabase
             .from('humor_flavor_mix')
-            .update({ caption_count: captionCount })
+            .update(withUpdateAuditFields({ caption_count: captionCount }, profile.id))
             .eq('id', mixId);
 
         revalidatePath('/admin/data/humor-mix');
@@ -695,11 +728,16 @@ export default async function AdminResourcePage({
 
         await supabase
             .from('humor_flavors')
-            .update({
-                slug,
-                description,
-                themes,
-            })
+            .update(
+                withUpdateAuditFields(
+                    {
+                        slug,
+                        description,
+                        themes,
+                    },
+                    profile.id
+                )
+            )
             .eq('id', Number.isNaN(Number(flavorId)) ? flavorId : Number(flavorId));
 
         revalidatePath('/admin/data/humor-flavors');
@@ -715,7 +753,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const flavorId = String(formData.get('id') ?? '').trim();
         if (!flavorId) {
             return;
@@ -734,15 +772,15 @@ export default async function AdminResourcePage({
 
         const baseSlug = pickString(original, ['slug'], `flavor-${flavorId}`);
         const duplicateSlug = `${baseSlug}-copy`;
-        const payload = { ...original } as Record<string, unknown>;
+        const payload = stripAuditFields(original);
         delete payload.id;
         delete payload.created_at;
-        delete payload.created_datetime_utc;
         delete payload.updated_at;
-        delete payload.modified_datetime_utc;
         payload.slug = duplicateSlug;
 
-        await supabase.from('humor_flavors').insert(payload);
+        await supabase
+            .from('humor_flavors')
+            .insert(withInsertAuditFields(payload, profile.id));
 
         revalidatePath('/admin/data/humor-flavors');
         revalidatePath('/admin');

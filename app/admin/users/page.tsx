@@ -2,7 +2,14 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { DataTable } from '../../../components/admin/DataTable';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
-import { asRecord, formatDate, pickBool, pickDateValue, pickString } from '../_lib';
+import {
+    asRecord,
+    formatDate,
+    pickBool,
+    pickDateValue,
+    pickString,
+    withUpdateAuditFields,
+} from '../_lib';
 
 const PAGE_SIZE = 50;
 
@@ -16,11 +23,11 @@ async function toggleSuperadmin(formData: FormData) {
         return;
     }
 
-    const { supabase } = await requireSuperadmin();
+    const { supabase, profile } = await requireSuperadmin();
 
     await supabase
         .from('profiles')
-        .update({ is_superadmin: !currentValue })
+        .update(withUpdateAuditFields({ is_superadmin: !currentValue }, profile.id))
         .eq('id', profileId);
 
     revalidatePath('/admin/users');

@@ -66,3 +66,33 @@ export function formatDate(date: Date | null): string {
 export function shortId(value: string): string {
     return value.length > 10 ? `${value.slice(0, 8)}...` : value;
 }
+
+export function withInsertAuditFields(
+    payload: Record<string, unknown>,
+    profileId: string
+): Record<string, unknown> {
+    return {
+        ...payload,
+        created_by_user_id: profileId,
+        modified_by_user_id: profileId,
+    };
+}
+
+export function withUpdateAuditFields(
+    payload: Record<string, unknown>,
+    profileId: string
+): Record<string, unknown> {
+    return {
+        ...payload,
+        modified_by_user_id: profileId,
+    };
+}
+
+export function stripAuditFields(payload: Record<string, unknown>): Record<string, unknown> {
+    const nextPayload = { ...payload };
+    delete nextPayload.created_by_user_id;
+    delete nextPayload.modified_by_user_id;
+    delete nextPayload.created_datetime_utc;
+    delete nextPayload.modified_datetime_utc;
+    return nextPayload;
+}

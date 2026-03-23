@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireSuperadmin } from '../../../src/lib/auth/requireSuperadmin';
+import { withInsertAuditFields } from '../_lib';
 import { parseObjectJson } from './_lib';
 
 export async function createImage(formData: FormData) {
-    const { supabase } = await requireSuperadmin();
+    const { supabase, profile } = await requireSuperadmin();
 
     const uploadBucket = process.env.SUPABASE_IMAGE_UPLOAD_BUCKET ?? 'images';
     const explicitUrl = String(formData.get('image_url') ?? '').trim();
@@ -49,7 +50,9 @@ export async function createImage(formData: FormData) {
     ];
 
     for (const payload of payloadCandidates) {
-        const result = await supabase.from('images').insert(payload);
+        const result = await supabase
+            .from('images')
+            .insert(withInsertAuditFields(payload, profile.id));
         if (!result.error) {
             break;
         }
