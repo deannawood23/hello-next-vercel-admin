@@ -1,6 +1,8 @@
 type DataPoint = {
     label: string;
     value: number;
+    upvotes: number;
+    downvotes: number;
 };
 
 type DivergingBarChartProps = {
@@ -24,9 +26,17 @@ export function DivergingBarChart({ title, data }: DivergingBarChartProps) {
                             ? Math.max(8, Math.round((Math.abs(point.value) / maxMagnitude) * 96))
                             : 8;
                     const isPositive = point.value >= 0;
+                    const hoverText = `${point.label}
+Upvotes: ${point.upvotes}
+Downvotes: ${point.downvotes}
+Net: ${point.value}`;
 
                     return (
-                        <div key={point.label} className="flex flex-col items-center gap-2">
+                        <div
+                            key={point.label}
+                            className="flex flex-col items-center gap-2"
+                            title={hoverText}
+                        >
                             <div className="text-[10px] text-[#8A8F98]">{point.value}</div>
                             <div className="flex h-48 w-full flex-col">
                                 <div className="flex h-1/2 items-end justify-center">

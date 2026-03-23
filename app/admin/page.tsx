@@ -103,14 +103,14 @@ function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
 
 function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
     const now = new Date();
-    const map = new Map<string, number>();
+    const map = new Map<string, { value: number; upvotes: number; downvotes: number }>();
 
     for (let i = 6; i >= 0; i -= 1) {
         const d = new Date(now);
         d.setHours(0, 0, 0, 0);
         d.setDate(now.getDate() - i);
         const key = d.toISOString().slice(0, 10);
-        map.set(key, 0);
+        map.set(key, { value: 0, upvotes: 0, downvotes: 0 });
     }
 
     for (const row of rows) {
@@ -125,13 +125,28 @@ function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
         }
 
         const voteValue = typeof row.vote_value === 'number' ? row.vote_value : 0;
-        map.set(key, (map.get(key) ?? 0) + voteValue);
+        const bucket = map.get(key);
+        if (!bucket) {
+            continue;
+        }
+
+        bucket.value += voteValue;
+        if (voteValue > 0) {
+            bucket.upvotes += voteValue;
+        } else if (voteValue < 0) {
+            bucket.downvotes += Math.abs(voteValue);
+        }
     }
 
-    return Array.from(map.entries()).map(([isoDay, value]) => {
+    return Array.from(map.entries()).map(([isoDay, totals]) => {
         const day = new Date(`${isoDay}T00:00:00`);
         const label = day.toLocaleDateString('en-US', { weekday: 'short' });
-        return { label, value };
+        return {
+            label,
+            value: totals.value,
+            upvotes: totals.upvotes,
+            downvotes: totals.downvotes,
+        };
     });
 }
 
