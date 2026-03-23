@@ -554,6 +554,7 @@ export default async function AdminResourcePage({
 
         revalidatePath('/admin/data/allowed-signup-domains');
         revalidatePath('/admin');
+        redirect('/admin/data/allowed-signup-domains');
     }
 
     async function deleteAllowedDomain(formData: FormData) {
@@ -617,6 +618,7 @@ export default async function AdminResourcePage({
 
         revalidatePath('/admin/data/whitelisted-email-addresses');
         revalidatePath('/admin');
+        redirect('/admin/data/whitelisted-email-addresses');
     }
 
     async function deleteWhitelistedEmail(formData: FormData) {

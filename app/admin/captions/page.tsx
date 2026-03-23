@@ -55,6 +55,26 @@ function applyCaptionSearch<TQuery extends {
     return queryBuilder.or(`content.ilike.%${escaped}%,id.eq.${trimmed}`);
 }
 
+function matchesCaptionQuery(row: Record<string, unknown>, query: string) {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+        return true;
+    }
+
+    const id = pickString(row, ['id'], '').toLowerCase();
+    const content = pickString(row, ['content', 'caption', 'text'], '').toLowerCase();
+    const profileId = pickString(row, ['profile_id'], '').toLowerCase();
+    const imageId = pickString(row, ['image_id'], '').toLowerCase();
+
+    return (
+        id === trimmed ||
+        id.includes(trimmed) ||
+        content.includes(trimmed) ||
+        profileId.includes(trimmed) ||
+        imageId.includes(trimmed)
+    );
+}
+
 export default async function AdminCaptionsPage({
     searchParams,
 }: {
@@ -69,50 +89,82 @@ export default async function AdminCaptionsPage({
     const requestedPage = Number.parseInt(String(params?.page ?? '1'), 10);
     const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-    let countQuery = supabase
-        .from('captions')
-        .select('id', { count: 'exact', head: true });
-    countQuery = applyCaptionSearch(countQuery, query);
+    let captions: Record<string, unknown>[] = [];
+    let filteredCaptions: Record<string, unknown>[] = [];
+    let totalCaptions = 0;
+    let safePage = currentPage;
 
-    const countResult = await countQuery;
-    const totalCaptions = countResult.count ?? 0;
-    const totalPages = Math.max(1, Math.ceil(totalCaptions / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const rangeFrom = (safePage - 1) * PAGE_SIZE;
-    const rangeTo = rangeFrom + PAGE_SIZE - 1;
+    if (query) {
+        const primarySearchResult = await supabase
+            .from('captions')
+            .select('*')
+            .order('created_datetime_utc', { ascending: false })
+            .range(0, 4999);
+        const fallbackSearchResult = primarySearchResult.error
+            ? await supabase
+                  .from('captions')
+                  .select('*')
+                  .order('created_at', { ascending: false })
+                  .range(0, 4999)
+            : null;
+        const sourceRows = primarySearchResult.error
+            ? fallbackSearchResult?.data ?? []
+            : primarySearchResult.data ?? [];
 
-    let captionsQuery = supabase.from('captions').select('*').range(rangeFrom, rangeTo);
-    captionsQuery = applyCaptionSearch(captionsQuery, query);
-
-    if (sort === 'liked') {
-        captionsQuery = captionsQuery.order('like_count', { ascending: false, nullsFirst: false });
-    } else if (sort === 'oldest') {
-        captionsQuery = captionsQuery.order('created_datetime_utc', { ascending: true });
+        filteredCaptions = sourceRows
+            .map((row) => asRecord(row))
+            .filter((row) => matchesCaptionQuery(row, query));
+        totalCaptions = filteredCaptions.length;
+        const totalPages = Math.max(1, Math.ceil(totalCaptions / PAGE_SIZE));
+        safePage = Math.min(currentPage, totalPages);
     } else {
-        captionsQuery = captionsQuery.order('created_datetime_utc', { ascending: false });
+        let countQuery = supabase
+            .from('captions')
+            .select('id', { count: 'exact', head: true });
+        countQuery = applyCaptionSearch(countQuery, query);
+
+        const countResult = await countQuery;
+        totalCaptions = countResult.count ?? 0;
+        const totalPages = Math.max(1, Math.ceil(totalCaptions / PAGE_SIZE));
+        safePage = Math.min(currentPage, totalPages);
+        const rangeFrom = (safePage - 1) * PAGE_SIZE;
+        const rangeTo = rangeFrom + PAGE_SIZE - 1;
+
+        let captionsQuery = supabase.from('captions').select('*').range(rangeFrom, rangeTo);
+        captionsQuery = applyCaptionSearch(captionsQuery, query);
+
+        if (sort === 'liked') {
+            captionsQuery = captionsQuery.order('like_count', { ascending: false, nullsFirst: false });
+        } else if (sort === 'oldest') {
+            captionsQuery = captionsQuery.order('created_datetime_utc', { ascending: true });
+        } else {
+            captionsQuery = captionsQuery.order('created_datetime_utc', { ascending: false });
+        }
+
+        const primaryCaptions = await captionsQuery;
+        let fallbackCaptions = null;
+
+        if (primaryCaptions.error && sort !== 'liked') {
+            let fallbackQuery = supabase.from('captions').select('*').range(rangeFrom, rangeTo);
+            fallbackQuery = applyCaptionSearch(fallbackQuery, query);
+            fallbackQuery = fallbackQuery.order('created_at', {
+                ascending: sort === 'oldest',
+            });
+            fallbackCaptions = await fallbackQuery;
+        }
+
+        captions = (primaryCaptions.error
+            ? fallbackCaptions?.data ?? []
+            : primaryCaptions.data ?? []).map((row) => asRecord(row));
     }
 
-    const primaryCaptions = await captionsQuery;
-    let fallbackCaptions = null;
-
-    if (primaryCaptions.error && sort !== 'liked') {
-        let fallbackQuery = supabase.from('captions').select('*').range(rangeFrom, rangeTo);
-        fallbackQuery = applyCaptionSearch(fallbackQuery, query);
-        fallbackQuery = fallbackQuery.order('created_at', {
-            ascending: sort === 'oldest',
-        });
-        fallbackCaptions = await fallbackQuery;
-    }
-
-    const captions = primaryCaptions.error
-        ? fallbackCaptions?.data ?? []
-        : primaryCaptions.data ?? [];
-    const captionIds = captions
+    const workingCaptions = query ? filteredCaptions : captions;
+    const captionIds = workingCaptions
         .map((caption) => (typeof caption?.id === 'string' ? caption.id : null))
         .filter((value): value is string => Boolean(value));
     const imageIds = Array.from(
         new Set(
-            captions
+            workingCaptions
                 .map((caption) => {
                     const value = caption?.image_id;
                     return typeof value === 'string' && value.trim().length > 0 ? value : null;
@@ -122,7 +174,7 @@ export default async function AdminCaptionsPage({
     );
     const profileIds = Array.from(
         new Set(
-            captions
+            workingCaptions
                 .map((caption) => {
                     const value = caption?.profile_id;
                     return typeof value === 'string' && value.trim().length > 0 ? value : null;
@@ -178,6 +230,28 @@ export default async function AdminCaptionsPage({
         const voteValue = typeof voteValueRaw === 'number' ? voteValueRaw : 0;
         voteCountByCaption.set(captionId, (voteCountByCaption.get(captionId) ?? 0) + voteValue);
     }
+
+    if (query) {
+        filteredCaptions.sort((left, right) => {
+            if (sort === 'liked') {
+                const leftId = pickString(left, ['id'], '');
+                const rightId = pickString(right, ['id'], '');
+                return (voteCountByCaption.get(rightId) ?? 0) - (voteCountByCaption.get(leftId) ?? 0);
+            }
+
+            const leftDate = pickDateValue(left, ['created_datetime_utc', 'created_at'])?.getTime() ?? 0;
+            const rightDate =
+                pickDateValue(right, ['created_datetime_utc', 'created_at'])?.getTime() ?? 0;
+
+            return sort === 'oldest' ? leftDate - rightDate : rightDate - leftDate;
+        });
+
+        const rangeFrom = (safePage - 1) * PAGE_SIZE;
+        const rangeTo = rangeFrom + PAGE_SIZE;
+        captions = filteredCaptions.slice(rangeFrom, rangeTo);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalCaptions / PAGE_SIZE));
 
     const rows = captions.map((raw) => {
         const row = asRecord(raw);

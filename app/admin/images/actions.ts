@@ -27,20 +27,33 @@ export async function createImage(formData: FormData) {
             upsert: false,
         });
 
-        if (!upload.error) {
-            uploadedPath = objectPath;
-            uploadedUrl = supabase.storage.from(uploadBucket).getPublicUrl(objectPath).data.publicUrl;
+        if (upload.error) {
+            throw new Error(`Image upload failed: ${upload.error.message}`);
         }
+
+        uploadedPath = objectPath;
+        uploadedUrl = supabase.storage.from(uploadBucket).getPublicUrl(objectPath).data.publicUrl;
     }
 
     const resolvedUrl = explicitUrl || uploadedUrl;
     if (!resolvedUrl) {
-        return;
+        throw new Error('Provide either an image URL or a local file.');
     }
 
     const base: Record<string, unknown> = metadata ? { ...metadata } : {};
+    if (typeof base.profile_id !== 'string' || base.profile_id.trim().length === 0) {
+        base.profile_id = profile.id;
+    }
     if (uploadedPath) {
-        base.storage_path = uploadedPath;
+        if (typeof base.storage_path === 'string') {
+            base.storage_path = uploadedPath;
+        }
+        if (typeof base.path === 'string') {
+            base.path = uploadedPath;
+        }
+        if (typeof base.object_path === 'string') {
+            base.object_path = uploadedPath;
+        }
     }
 
     const payloadCandidates: Array<Record<string, unknown>> = [
@@ -49,16 +62,20 @@ export async function createImage(formData: FormData) {
         { ...base, storage_url: resolvedUrl },
     ];
 
+    let lastInsertError: Error | null = null;
     for (const payload of payloadCandidates) {
         const result = await supabase
             .from('images')
             .insert(withInsertAuditFields(payload, profile.id));
         if (!result.error) {
-            break;
+            revalidatePath('/admin/images');
+            revalidatePath('/admin/images/upload');
+            revalidatePath('/admin');
+            return;
         }
+
+        lastInsertError = new Error(result.error.message);
     }
 
-    revalidatePath('/admin/images');
-    revalidatePath('/admin/images/upload');
-    revalidatePath('/admin');
+    throw lastInsertError ?? new Error('Failed to create the image row.');
 }

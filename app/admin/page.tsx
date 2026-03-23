@@ -1,4 +1,5 @@
 import { SimpleBarChart } from '../../components/admin/SimpleBarChart';
+import { DivergingBarChart } from '../../components/admin/DivergingBarChart';
 import { StatCard } from '../../components/admin/StatCard';
 import { requireSuperadmin } from '../../src/lib/auth/requireSuperadmin';
 import { asRecord, pickDateValue } from './_lib';
@@ -41,7 +42,33 @@ async function getCaptionRows(
     return [];
 }
 
-function buildLast7DaysActivity(rows: Record<string, unknown>[]) {
+async function getCaptionVoteRows(
+    supabase: Awaited<ReturnType<typeof requireSuperadmin>>['supabase']
+): Promise<Record<string, unknown>[]> {
+    const first = await supabase
+        .from('caption_votes')
+        .select('id, vote_value, created_datetime_utc')
+        .order('created_datetime_utc', { ascending: false })
+        .limit(5000);
+
+    if (!first.error) {
+        return (first.data ?? []).map((row) => asRecord(row));
+    }
+
+    const fallback = await supabase
+        .from('caption_votes')
+        .select('id, vote_value, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+    if (!fallback.error) {
+        return (fallback.data ?? []).map((row) => asRecord(row));
+    }
+
+    return [];
+}
+
+function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
     const now = new Date();
     const map = new Map<string, number>();
 
@@ -74,6 +101,40 @@ function buildLast7DaysActivity(rows: Record<string, unknown>[]) {
     });
 }
 
+function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
+    const now = new Date();
+    const map = new Map<string, number>();
+
+    for (let i = 6; i >= 0; i -= 1) {
+        const d = new Date(now);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(now.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        map.set(key, 0);
+    }
+
+    for (const row of rows) {
+        const date = pickDateValue(row, ['created_datetime_utc', 'created_at']);
+        if (!date) {
+            continue;
+        }
+
+        const key = date.toISOString().slice(0, 10);
+        if (!map.has(key)) {
+            continue;
+        }
+
+        const voteValue = typeof row.vote_value === 'number' ? row.vote_value : 0;
+        map.set(key, (map.get(key) ?? 0) + voteValue);
+    }
+
+    return Array.from(map.entries()).map(([isoDay, value]) => {
+        const day = new Date(`${isoDay}T00:00:00`);
+        const label = day.toLocaleDateString('en-US', { weekday: 'short' });
+        return { label, value };
+    });
+}
+
 export default async function AdminOverviewPage() {
     const { supabase } = await requireSuperadmin();
 
@@ -86,8 +147,12 @@ export default async function AdminOverviewPage() {
         (await countRows(supabase, 'votes')) ??
         0;
 
-    const captionRows = await getCaptionRows(supabase);
-    const activity = buildLast7DaysActivity(captionRows);
+    const [captionRows, captionVoteRows] = await Promise.all([
+        getCaptionRows(supabase),
+        getCaptionVoteRows(supabase),
+    ]);
+    const activity = buildLast7DaysCounts(captionRows);
+    const voteActivity = buildLast7DaysVoteTotals(captionVoteRows);
 
     return (
         <div className="space-y-6">
@@ -103,7 +168,10 @@ export default async function AdminOverviewPage() {
                 <StatCard label="Votes" value={votesCount} />
             </div>
 
-            <SimpleBarChart title="Last 7 Days Activity" data={activity} />
+            <div className="grid gap-4 xl:grid-cols-2">
+                <SimpleBarChart title="Last 7 Days Caption Activity" data={activity} />
+                <DivergingBarChart title="Last 7 Days Vote Total" data={voteActivity} />
+            </div>
         </div>
     );
 }
