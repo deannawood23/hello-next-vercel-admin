@@ -13,29 +13,38 @@ export default async function ProtectedPage() {
     const { user } = await requireUser();
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-12 text-slate-900 sm:px-8">
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="space-y-2">
-                    <p className="text-sm font-medium uppercase tracking-wide text-rose-700">
-                        Protected
-                    </p>
-                    <h1 className="font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-rose-700">
-                        ERROR: SUPERADMIN NOT FOUND
-                    </h1>
-                </div>
+        <main className="linear-page-bg min-h-screen px-4 py-10 text-[#EDEDEF] sm:px-8">
+            <div aria-hidden="true" className="linear-grid absolute inset-0 opacity-100" />
+            <div aria-hidden="true" className="linear-noise absolute inset-0 opacity-[0.015]" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-primary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-secondary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-tertiary" />
+            <div aria-hidden="true" className="ambient-blob ambient-blob-bottom" />
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Signed in as <span className="font-semibold">{user.email}</span>
-                </div>
+            <div className="mx-auto flex min-h-[80vh] w-full max-w-2xl items-center">
+                <div className="linear-glass relative z-10 w-full rounded-2xl p-6 sm:p-8">
+                    <div className="space-y-4">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[#8A8F98]">
+                            Restricted Access
+                        </p>
+                        <h1 className="bg-gradient-to-b from-white via-white/95 to-white/65 bg-clip-text font-[var(--font-playfair)] text-3xl font-semibold tracking-tight text-transparent sm:text-4xl">
+                            Superadmin access required
+                        </h1>
+                        <p className="text-sm text-[#A6ACB6]">
+                            Signed in as <span className="font-semibold text-[#EDEDEF]">{user.email}</span>, but this account does not have superadmin permissions.
+                        </p>
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                    </div>
 
-                <form action={signOut}>
-                    <button
-                        type="submit"
-                        className="w-full rounded-full border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                    >
-                        Sign out
-                    </button>
-                </form>
+                    <form action={signOut} className="mt-6">
+                        <button
+                            type="submit"
+                            className="inline-flex w-full items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-[#D4D8DF] transition hover:border-white/20 hover:bg-white/[0.08]"
+                        >
+                            Sign out
+                        </button>
+                    </form>
+                </div>
             </div>
         </main>
     );
