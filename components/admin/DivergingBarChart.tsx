@@ -26,25 +26,28 @@ export function DivergingBarChart({ title, data }: DivergingBarChartProps) {
                             ? Math.max(8, Math.round((Math.abs(point.value) / maxMagnitude) * 96))
                             : 8;
                     const isPositive = point.value >= 0;
-                    const hoverText = `${point.label}
-Upvotes: ${point.upvotes}
-Downvotes: ${point.downvotes}
-Net: ${point.value}`;
 
                     return (
                         <div
                             key={point.label}
-                            className="flex flex-col items-center gap-2"
-                            title={hoverText}
+                            className="group relative flex flex-col items-center gap-2"
                         >
                             <div className="text-[10px] text-[#8A8F98]">{point.value}</div>
+                            <div
+                                className="pointer-events-none absolute -top-3 left-1/2 z-10 min-w-[96px] -translate-x-1/2 -translate-y-full rounded-lg border border-white/10 bg-[#111318]/95 px-2.5 py-2 text-center text-[10px] text-[#EDEDEF] opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                role="tooltip"
+                            >
+                                <div className="text-emerald-300">Upvotes: {point.upvotes}</div>
+                                <div className="text-rose-300">Downvotes: {point.downvotes}</div>
+                            </div>
                             <div className="flex h-48 w-full flex-col">
                                 <div className="flex h-1/2 items-end justify-center">
                                     {isPositive ? (
                                         <div
-                                            className="w-full rounded-t bg-gradient-to-t from-[#5E6AD2] to-[#91A3FF]"
+                                            className="w-full rounded-t bg-gradient-to-t from-[#5E6AD2] to-[#91A3FF] outline-none"
                                             style={{ height: magnitudeHeight }}
                                             aria-label={`${point.label}: ${point.value}`}
+                                            tabIndex={0}
                                         />
                                     ) : (
                                         <div className="w-full" />
@@ -56,9 +59,10 @@ Net: ${point.value}`;
                                         <div className="w-full" />
                                     ) : (
                                         <div
-                                            className="w-full rounded-b bg-gradient-to-b from-[#FF8A8A] to-[#D24C4C]"
+                                            className="w-full rounded-b bg-gradient-to-b from-[#FF8A8A] to-[#D24C4C] outline-none"
                                             style={{ height: magnitudeHeight }}
                                             aria-label={`${point.label}: ${point.value}`}
+                                            tabIndex={0}
                                         />
                                     )}
                                 </div>
