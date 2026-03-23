@@ -252,7 +252,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         await supabase.from(config.table).insert(withInsertAuditFields(payload, profile.id));
 
         revalidatePath(`/admin/data/${resource}`);
@@ -275,7 +275,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         await supabase
             .from(config.table)
             .update(withUpdateAuditFields(payload, profile.id))
@@ -292,7 +292,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const captionExampleId = String(formData.get('id') ?? '').trim();
         const mode = String(formData.get('mode') ?? '').trim();
         if (mode !== 'create' && !captionExampleId) {
@@ -338,7 +338,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const termId = String(formData.get('id') ?? '').trim();
         const mode = String(formData.get('mode') ?? '').trim();
         if (mode !== 'create' && !termId) {
@@ -384,7 +384,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const termId = String(formData.get('id') ?? '').trim();
         if (!termId) {
             return;
@@ -403,7 +403,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const modelId = String(formData.get('id') ?? '').trim();
         const mode = String(formData.get('mode') ?? '').trim();
         if (mode !== 'create' && !modelId) {
@@ -448,7 +448,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const modelId = String(formData.get('id') ?? '').trim();
         if (!modelId) {
             return;
@@ -467,7 +467,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const providerId = String(formData.get('id') ?? '').trim();
         const mode = String(formData.get('mode') ?? '').trim();
         if (mode !== 'create' && !providerId) {
@@ -500,7 +500,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const providerId = String(formData.get('id') ?? '').trim();
         if (!providerId) {
             return;
@@ -563,7 +563,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const id = String(formData.get('id') ?? '').trim();
         if (!id) {
             return;
@@ -715,7 +715,7 @@ export default async function AdminResourcePage({
             return;
         }
 
-        const { supabase } = await requireSuperadmin();
+        const { supabase, profile } = await requireSuperadmin();
         const flavorId = String(formData.get('id') ?? '').trim();
         if (!flavorId) {
             return;
