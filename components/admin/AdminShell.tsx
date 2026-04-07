@@ -111,6 +111,19 @@ const navItems: NavItem[] = [
         ),
     },
     {
+        href: '/admin/data/humor-flavors/sad-girl',
+        label: 'Sad-Girl Data',
+        indent: true,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                <path d="M12 19a7 7 0 1 0-7-7" />
+                <path d="M8 10h.01" />
+                <path d="M16 10h.01" />
+                <path d="M9 16c1-1 2-1.5 3-1.5s2 .5 3 1.5" />
+            </svg>
+        ),
+    },
+    {
         href: '/admin/data/humor-mix',
         label: 'Humor Mix',
         indent: true,
