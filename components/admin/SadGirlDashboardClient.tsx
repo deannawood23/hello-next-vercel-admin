@@ -162,13 +162,18 @@ export function SadGirlDashboardClient({ initialData }: SadGirlDashboardClientPr
                                 key={caption.id}
                                 className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
                             >
-                                <div className="aspect-square bg-black/25">
+                                <div className="aspect-square bg-black/30 p-2">
                                     {caption.imageUrl ? (
-                                        <img
-                                            src={caption.imageUrl}
-                                            alt={caption.content}
-                                            className="h-full w-full object-cover"
-                                        />
+                                        <Link
+                                            href={`/admin/images/${encodeURIComponent(caption.imageId)}`}
+                                            className="block h-full w-full"
+                                        >
+                                            <img
+                                                src={caption.imageUrl}
+                                                alt={caption.content}
+                                                className="h-full w-full rounded-xl object-cover object-center transition hover:scale-[1.01] hover:opacity-90"
+                                            />
+                                        </Link>
                                     ) : (
                                         <div className="flex h-full items-center justify-center text-sm text-[#7E8590]">
                                             No image
