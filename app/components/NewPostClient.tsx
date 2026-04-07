@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { supabase } from '../../src/lib/supabase/client';
 
-const PIPELINE_BASE_URL = 'https://api.almostcrackd.ai';
 const SUPPORTED_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',
@@ -26,6 +25,10 @@ function parseErrorMessage(data: unknown, fallback: string): string {
     return typeof candidate === 'string' && candidate.trim().length > 0
         ? candidate
         : fallback;
+}
+
+async function parseJsonResponse(response: Response): Promise<unknown> {
+    return response.json().catch(() => ({}));
 }
 
 function parseCaptionList(data: unknown): string[] {
@@ -155,33 +158,12 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
         setImageUrl(null);
 
         try {
-            const {
-                data: { session },
-                error: sessionError,
-            } = await supabase.auth.getSession();
-
-            if (sessionError) {
-                throw new Error(sessionError.message);
-            }
-
-            if (!session?.access_token) {
-                throw new Error('Missing access token. Sign in again and retry.');
-            }
-
-            const authHeaders = {
-                Authorization: `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-            };
-
-            const presignResponse = await fetch(
-                `${PIPELINE_BASE_URL}/pipeline/generate-presigned-url`,
-                {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({ contentType: selectedFile.type }),
-                }
-            );
-            const presignData = (await presignResponse.json()) as {
+            const presignResponse = await fetch('/api/admin/pipeline/generate-presigned-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contentType: selectedFile.type }),
+            });
+            const presignData = (await parseJsonResponse(presignResponse)) as {
                 presignedUrl?: string;
                 cdnUrl?: string;
             };
@@ -206,18 +188,15 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
             setImageUrl(presignData.cdnUrl);
             setStatusMessage('Registering image in pipeline...');
 
-            const registerResponse = await fetch(
-                `${PIPELINE_BASE_URL}/pipeline/upload-image-from-url`,
-                {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({
-                        imageUrl: presignData.cdnUrl,
-                        isCommonUse: false,
-                    }),
-                }
-            );
-            const registerData = (await registerResponse.json().catch(() => ({}))) as {
+            const registerResponse = await fetch('/api/admin/pipeline/upload-image-from-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageUrl: presignData.cdnUrl,
+                    isCommonUse: false,
+                }),
+            });
+            const registerData = (await parseJsonResponse(registerResponse)) as {
                 imageId?: string;
                 message?: string;
             };
@@ -229,17 +208,12 @@ export function NewPostClient({ userEmail }: NewPostClientProps) {
             }
 
             setStatusMessage('Generating captions...');
-            const generateResponse = await fetch(
-                `${PIPELINE_BASE_URL}/pipeline/generate-captions`,
-                {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({ imageId: registerData.imageId }),
-                }
-            );
-            const generatedData = (await generateResponse
-                .json()
-                .catch(() => [])) as unknown;
+            const generateResponse = await fetch('/api/admin/pipeline/generate-captions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageId: registerData.imageId }),
+            });
+            const generatedData = await parseJsonResponse(generateResponse);
 
             if (!generateResponse.ok) {
                 throw new Error(
