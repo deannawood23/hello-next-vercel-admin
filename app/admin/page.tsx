@@ -68,16 +68,41 @@ async function getCaptionVoteRows(
     return [];
 }
 
-function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
+function getEasternDayKey(date: Date) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+}
+
+function getLast7EasternDayKeys() {
+    const keys: string[] = [];
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'short',
+    });
     const now = new Date();
-    const map = new Map<string, number>();
 
     for (let i = 6; i >= 0; i -= 1) {
         const d = new Date(now);
-        d.setHours(0, 0, 0, 0);
         d.setDate(now.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        map.set(key, 0);
+        const key = getEasternDayKey(d);
+        keys.push(key);
+    }
+
+    return keys.map((key) => ({
+        key,
+        label: formatter.format(new Date(`${key}T12:00:00Z`)),
+    }));
+}
+
+function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
+    const map = new Map<string, number>();
+
+    for (const day of getLast7EasternDayKeys()) {
+        map.set(day.key, 0);
     }
 
     for (const row of rows) {
@@ -86,7 +111,7 @@ function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
             continue;
         }
 
-        const key = date.toISOString().slice(0, 10);
+        const key = getEasternDayKey(date);
         if (!map.has(key)) {
             continue;
         }
@@ -94,23 +119,17 @@ function buildLast7DaysCounts(rows: Record<string, unknown>[]) {
         map.set(key, (map.get(key) ?? 0) + 1);
     }
 
-    return Array.from(map.entries()).map(([isoDay, value]) => {
-        const day = new Date(`${isoDay}T00:00:00`);
-        const label = day.toLocaleDateString('en-US', { weekday: 'short' });
-        return { label, value };
-    });
+    return getLast7EasternDayKeys().map((day) => ({
+        label: day.label,
+        value: map.get(day.key) ?? 0,
+    }));
 }
 
 function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
-    const now = new Date();
     const map = new Map<string, { value: number; upvotes: number; downvotes: number }>();
 
-    for (let i = 6; i >= 0; i -= 1) {
-        const d = new Date(now);
-        d.setHours(0, 0, 0, 0);
-        d.setDate(now.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        map.set(key, { value: 0, upvotes: 0, downvotes: 0 });
+    for (const day of getLast7EasternDayKeys()) {
+        map.set(day.key, { value: 0, upvotes: 0, downvotes: 0 });
     }
 
     for (const row of rows) {
@@ -119,7 +138,7 @@ function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
             continue;
         }
 
-        const key = date.toISOString().slice(0, 10);
+        const key = getEasternDayKey(date);
         if (!map.has(key)) {
             continue;
         }
@@ -138,11 +157,10 @@ function buildLast7DaysVoteTotals(rows: Record<string, unknown>[]) {
         }
     }
 
-    return Array.from(map.entries()).map(([isoDay, totals]) => {
-        const day = new Date(`${isoDay}T00:00:00`);
-        const label = day.toLocaleDateString('en-US', { weekday: 'short' });
+    return getLast7EasternDayKeys().map((day) => {
+        const totals = map.get(day.key) ?? { value: 0, upvotes: 0, downvotes: 0 };
         return {
-            label,
+            label: day.label,
             value: totals.value,
             upvotes: totals.upvotes,
             downvotes: totals.downvotes,
