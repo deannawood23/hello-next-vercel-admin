@@ -33,6 +33,7 @@ type SadGirlMetrics = {
         content: string;
         imageId: string;
         imageUrl: string;
+        captionRequestId: string;
         upvotes: number;
         createdAt: string;
     }[];
@@ -188,12 +189,18 @@ export function SadGirlDashboardClient({ initialData }: SadGirlDashboardClientPr
                                         <p>{caption.createdAt ? new Date(caption.createdAt).toLocaleString('en-US') : 'Unknown date'}</p>
                                         <p className="truncate">Image: {caption.imageId || 'Unknown'}</p>
                                     </div>
-                                    <Link
-                                        href={`/admin/captions?q=${encodeURIComponent(caption.id)}&sort=liked`}
-                                        className="inline-flex rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-[#D4D8DF] transition hover:border-white/20 hover:bg-white/[0.08]"
-                                    >
-                                        View in captions
-                                    </Link>
+                                    {caption.captionRequestId ? (
+                                        <Link
+                                            href={`/admin/data/caption-requests/${encodeURIComponent(caption.captionRequestId)}`}
+                                            className="inline-flex rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-[#D4D8DF] transition hover:border-white/20 hover:bg-white/[0.08]"
+                                        >
+                                            View caption request
+                                        </Link>
+                                    ) : (
+                                        <span className="inline-flex rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs font-semibold text-[#6F7682]">
+                                            No caption request
+                                        </span>
+                                    )}
                                 </div>
                             </article>
                         ))}

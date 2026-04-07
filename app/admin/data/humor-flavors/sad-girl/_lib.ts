@@ -4,6 +4,20 @@ import { asRecord, pickDateValue, pickString } from '../../../_lib';
 type CaptionRow = Record<string, unknown>;
 type VoteRow = Record<string, unknown>;
 
+function pickNumberString(row: Record<string, unknown>, keys: string[]) {
+    for (const key of keys) {
+        const value = row[key];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return String(value);
+        }
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return value.trim();
+        }
+    }
+
+    return '';
+}
+
 export type SimpleChartPoint = {
     label: string;
     value: number;
@@ -32,6 +46,7 @@ export type SadGirlTopCaption = {
     content: string;
     imageId: string;
     imageUrl: string;
+    captionRequestId: string;
     upvotes: number;
     createdAt: string;
 };
@@ -181,7 +196,7 @@ async function fetchAllCaptions(supabase: SupabaseClient, flavorIds: number[]) {
         const to = from + pageSize - 1;
         const result = await supabase
             .from('captions')
-            .select('id, content, created_datetime_utc, image_id, profile_id, humor_flavor_id')
+            .select('id, content, created_datetime_utc, image_id, profile_id, humor_flavor_id, caption_request_id')
             .in('humor_flavor_id', flavorIds)
             .order('created_datetime_utc', { ascending: false })
             .range(from, to);
@@ -327,6 +342,7 @@ export async function getSadGirlMetrics(
             content: pickString(row, ['content', 'caption', 'text'], 'N/A'),
             imageId,
             imageUrl: imageUrlById.get(imageId) ?? '',
+            captionRequestId: pickNumberString(row, ['caption_request_id']),
             upvotes: upvoteCountByCaptionId.get(id) ?? 0,
             createdAt: pickDateValue(row, ['created_datetime_utc'])?.toISOString() ?? '',
         };
