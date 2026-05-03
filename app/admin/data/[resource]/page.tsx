@@ -201,26 +201,67 @@ function formatEasternTimestamp(date: Date | null): string {
 
 async function fetchTableRows(
     supabase: Awaited<ReturnType<typeof requireSuperadmin>>['supabase'],
-    table: string
+    table: string,
+    options: {
+        orderKeys?: string[];
+        ascending?: boolean;
+        fetchAll?: boolean;
+        includeCount?: boolean;
+        range?: {
+            start: number;
+            end: number;
+        };
+    } = {}
 ) {
-    const orderKeys = ['created_datetime_utc', 'created_at', 'updated_at', 'id'];
+    const orderKeys = options.orderKeys ?? ['created_datetime_utc', 'created_at', 'updated_at', 'id'];
+    const ascending = options.ascending ?? false;
+    const pageSize = options.fetchAll ? 1000 : 200;
+    const startRange = options.range?.start ?? 0;
+    const endRange = options.range?.end ?? pageSize - 1;
+
     for (const key of orderKeys) {
-        const result = await supabase
+        const firstPage = await supabase
             .from(table)
-            .select('*')
-            .order(key, { ascending: false })
-            .limit(200);
-        if (!result.error) {
+            .select('*', { count: options.fetchAll || options.includeCount ? 'exact' : undefined })
+            .order(key, { ascending })
+            .range(startRange, endRange);
+
+        if (!firstPage.error) {
+            const rows = (firstPage.data ?? []).map((row) => asRecord(row));
+
+            if (options.fetchAll) {
+                const totalCount = firstPage.count ?? rows.length;
+                for (let start = pageSize; start < totalCount; start += pageSize) {
+                    const page = await supabase
+                        .from(table)
+                        .select('*')
+                        .order(key, { ascending })
+                        .range(start, start + pageSize - 1);
+                    if (page.error) {
+                        return {
+                            rows,
+                            error: `Fetched ${rows.length} of ${totalCount} rows before ${page.error.message}`,
+                        };
+                    }
+                    rows.push(...(page.data ?? []).map((row) => asRecord(row)));
+                }
+            }
+
             return {
-                rows: (result.data ?? []).map((row) => asRecord(row)),
+                rows,
+                count: firstPage.count ?? null,
                 error: null as string | null,
             };
         }
     }
 
-    const fallback = await supabase.from(table).select('*').limit(200);
+    const fallback = await supabase
+        .from(table)
+        .select('*', { count: options.includeCount ? 'exact' : undefined })
+        .range(startRange, endRange);
     return {
         rows: (fallback.data ?? []).map((row) => asRecord(row)),
+        count: fallback.count ?? null,
         error: fallback.error?.message ?? null,
     };
 }
@@ -719,6 +760,9 @@ export default async function AdminResourcePage({
 
         const { supabase, profile } = await requireSuperadmin();
         const flavorId = String(formData.get('id') ?? '').trim();
+        const page = Number.parseInt(String(formData.get('page') ?? '1'), 10);
+        const returnPage = Number.isFinite(page) && page > 1 ? page : 1;
+        const query = String(formData.get('q') ?? '').trim();
         if (!flavorId) {
             return;
         }
@@ -745,7 +789,11 @@ export default async function AdminResourcePage({
         revalidatePath('/admin/data/humor-flavors');
         revalidatePath(`/admin/data/humor-flavors/${flavorId}`);
         revalidatePath('/admin');
-        redirect('/admin/data/humor-flavors');
+        const params = [
+            query ? `q=${encodeURIComponent(query)}` : '',
+            returnPage > 1 ? `page=${returnPage}` : '',
+        ].filter(Boolean).join('&');
+        redirect(params ? `/admin/data/humor-flavors?${params}` : '/admin/data/humor-flavors');
     }
 
     async function duplicateHumorFlavor(formData: FormData) {
@@ -834,7 +882,31 @@ export default async function AdminResourcePage({
     }
 
     const { supabase } = await requireSuperadmin();
-    const { rows: data, error } = await fetchTableRows(supabase, config.table);
+    const requestedPage = Number.parseInt(String(resolvedSearchParams?.page ?? '1'), 10);
+    const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const humorFlavorPageSize = 25;
+    const humorFlavorQuery = String(resolvedSearchParams?.q ?? '').trim();
+    const { rows: data, count: totalRowCount, error } = await fetchTableRows(
+        supabase,
+        config.table,
+        resource === 'humor-flavors'
+            ? humorFlavorQuery
+              ? {
+                    orderKeys: ['slug', 'description', 'id'],
+                    ascending: true,
+                    fetchAll: true,
+                }
+              : {
+                  orderKeys: ['slug', 'description', 'id'],
+                  ascending: true,
+                  includeCount: true,
+                  range: {
+                      start: (currentPage - 1) * humorFlavorPageSize,
+                      end: currentPage * humorFlavorPageSize - 1,
+                  },
+              }
+            : {}
+    );
 
     if (resource === 'caption-requests') {
         const imageIds = Array.from(
@@ -965,6 +1037,45 @@ export default async function AdminResourcePage({
 
     if (resource === 'humor-flavors') {
         const editId = String(resolvedSearchParams?.edit ?? '').trim();
+        const normalizedQuery = humorFlavorQuery.toLowerCase();
+        const filteredFlavorData = normalizedQuery
+            ? data.filter((row) => {
+                  const slug = pickString(row, ['slug'], '').toLowerCase();
+                  const description = pickString(row, ['description'], '').toLowerCase();
+                  return slug.includes(normalizedQuery) || description.includes(normalizedQuery);
+              })
+            : data;
+        const totalFlavors = normalizedQuery ? filteredFlavorData.length : totalRowCount ?? data.length;
+        const totalPages = Math.max(1, Math.ceil(totalFlavors / humorFlavorPageSize));
+        const safePage = Math.min(currentPage, totalPages);
+        const startIndex = (safePage - 1) * humorFlavorPageSize;
+        const pagedFlavorData = normalizedQuery
+            ? filteredFlavorData.slice(startIndex, startIndex + humorFlavorPageSize)
+            : filteredFlavorData;
+        const queryParam = humorFlavorQuery ? `q=${encodeURIComponent(humorFlavorQuery)}` : '';
+        const pageParam = safePage > 1 ? `page=${safePage}` : '';
+        const listParams = [queryParam, pageParam].filter(Boolean).join('&');
+        const listHref = listParams ? `/admin/data/humor-flavors?${listParams}` : '/admin/data/humor-flavors';
+        const makePageHref = (page: number) => {
+            const params = [
+                humorFlavorQuery ? `q=${encodeURIComponent(humorFlavorQuery)}` : '',
+                page > 1 ? `page=${page}` : '',
+            ].filter(Boolean).join('&');
+            return params ? `/admin/data/humor-flavors?${params}` : '/admin/data/humor-flavors';
+        };
+        const makeEditHref = (id: string) => {
+            const params = [
+                humorFlavorQuery ? `q=${encodeURIComponent(humorFlavorQuery)}` : '',
+                safePage > 1 ? `page=${safePage}` : '',
+                `edit=${encodeURIComponent(id)}`,
+            ].filter(Boolean).join('&');
+            return `/admin/data/humor-flavors?${params}`;
+        };
+
+        if (currentPage !== safePage) {
+            redirect(makePageHref(safePage));
+        }
+
         const editResult = editId
             ? await supabase
                   .from('humor_flavors')
@@ -979,7 +1090,7 @@ export default async function AdminResourcePage({
             ? editRow.themes.map((value) => String(value)).join('\n')
             : pickString(editRow, ['themes'], '');
 
-        const flavorRows = data.map((row) => {
+        const flavorRows = pagedFlavorData.map((row) => {
             const rawId = row.id;
             const id =
                 typeof rawId === 'number'
@@ -1019,7 +1130,7 @@ export default async function AdminResourcePage({
                         </button>
                     </form>
                     <Link
-                        href={`/admin/data/humor-flavors?edit=${id}`}
+                        href={makeEditHref(id)}
                         className="inline-flex rounded-lg border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#5E6AD2]/35"
                     >
                         Edit
@@ -1051,12 +1162,36 @@ export default async function AdminResourcePage({
                     ) : null}
                 </div>
 
+                <form method="get" className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                        type="text"
+                        name="q"
+                        defaultValue={humorFlavorQuery}
+                        placeholder="Search by slug or description"
+                        className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#EDEDEF] outline-none placeholder:text-[#7E8590] focus:border-[#5E6AD2]/70"
+                    />
+                    <button
+                        type="submit"
+                        className="inline-flex rounded-xl border border-[#5E6AD2]/50 bg-[#5E6AD2]/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5E6AD2]/35"
+                    >
+                        Search
+                    </button>
+                    {humorFlavorQuery ? (
+                        <Link
+                            href="/admin/data/humor-flavors"
+                            className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                        >
+                            Clear
+                        </Link>
+                    ) : null}
+                </form>
+
                 <DataTable
                     columns={['ID', 'Slug', 'Description', 'Actions']}
                     rows={flavorRows}
                     emptyMessage={`No rows found in ${config.table}.`}
                     rowClassName="cursor-pointer transition-colors hover:bg-white/[0.04]"
-                    rowHrefs={data.map((row) => {
+                    rowHrefs={pagedFlavorData.map((row) => {
                         const rawId = row.id;
                         const id =
                             typeof rawId === 'number'
@@ -1068,6 +1203,41 @@ export default async function AdminResourcePage({
                     })}
                     nonLinkColumns={[3]}
                 />
+
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-[#A6ACB6] sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                        Showing {totalFlavors === 0 ? 0 : startIndex + 1} - {Math.min(startIndex + humorFlavorPageSize, totalFlavors)} of {totalFlavors} humor flavors
+                    </span>
+                    <div className="flex items-center gap-3">
+                        {safePage > 1 ? (
+                            <Link
+                                href={makePageHref(safePage - 1)}
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Previous
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Previous
+                            </span>
+                        )}
+                        <span>
+                            Page {safePage} of {totalPages}
+                        </span>
+                        {safePage < totalPages ? (
+                            <Link
+                                href={makePageHref(safePage + 1)}
+                                className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
+                            >
+                                Next
+                            </Link>
+                        ) : (
+                            <span className="inline-flex rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-[#6F7681]">
+                                Next
+                            </span>
+                        )}
+                    </div>
+                </div>
 
                 {editId && editResult.data ? (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
@@ -1081,6 +1251,8 @@ export default async function AdminResourcePage({
 
                             <form action={saveHumorFlavor} className="mt-6 space-y-5">
                                 <input type="hidden" name="id" value={editId} />
+                                <input type="hidden" name="page" value={safePage} />
+                                <input type="hidden" name="q" value={humorFlavorQuery} />
 
                                 <label className="block space-y-2">
                                     <span className="text-sm font-semibold text-[#EDEDEF]">Slug</span>
@@ -1114,7 +1286,7 @@ export default async function AdminResourcePage({
 
                                 <div className="flex items-center justify-end gap-3 pt-2">
                                     <Link
-                                        href="/admin/data/humor-flavors"
+                                        href={listHref}
                                         className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[#D4D8DF] transition hover:bg-white/[0.08]"
                                     >
                                         Cancel
@@ -1138,11 +1310,15 @@ export default async function AdminResourcePage({
         const query = String(resolvedSearchParams?.q ?? '').trim().toLowerCase();
         const [mixResult, flavorsResult] = await Promise.all([
             supabase.from('humor_flavor_mix').select('*').order('created_datetime_utc', { ascending: false }),
-            supabase.from('humor_flavors').select('*').order('slug', { ascending: true }),
+            fetchTableRows(supabase, 'humor_flavors', {
+                orderKeys: ['slug', 'description', 'id'],
+                ascending: true,
+                fetchAll: true,
+            }),
         ]);
 
         const mixRowsData = (mixResult.data ?? []).map((row) => asRecord(row));
-        const flavorRowsData = (flavorsResult.data ?? []).map((row) => asRecord(row));
+        const flavorRowsData = flavorsResult.rows;
         const flavorById = new Map<string, Record<string, unknown>>();
         for (const flavor of flavorRowsData) {
             const flavorId = String(flavor.id ?? '');
